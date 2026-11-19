@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unitree G1 を VLM で動かすロードマップ</title>
+<meta name="description" content="Unitree G1 実機を Vision-Language Model（VLM）で動かすまでの段階的なロードマップ。安全準備、SDK、シミュレーション、カメラ、VLM 接続、閉ループ化、腕と VLA への発展まで。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F2F4F5;
+  --paper-2: #E8ECEE;
+  --ink: #18232C;
+  --steel: #556570;
+  --rule: #CBD3DA;
+  --signal: #1F4FA3;
+  --signal-soft: #DCE5F4;
+  --caution: #EFC21A;
+  --caution-soft: #FFF6D6;
+  --ok: #2F7D4F;
+  --code-bg: #E3E8EB;
+  --human: #A5B1BA;
+  --font: "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --measure: 46em;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #151B20;
+    --paper-2: #1C242A;
+    --ink: #E4EAEE;
+    --steel: #9CABB6;
+    --rule: #2E3A44;
+    --signal: #86AEF2;
+    --signal-soft: #22314A;
+    --caution: #EFC21A;
+    --caution-soft: #2C2715;
+    --ok: #6CC08F;
+    --code-bg: #1E272E;
+    --human: #56636D;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16.5px;
+  line-height: 1.85;
+  font-feature-settings: "palt" 0;
+}
+a { color: var(--signal); text-underline-offset: 0.2em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; border-radius: 2px; }
+code, pre, kbd { font-family: var(--mono); }
+code { font-size: 0.9em; background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 3px; }
+pre {
+  background: var(--code-bg);
+  padding: 1em 1.1em;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  margin: 1em 0 1.4em;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+.cmt { color: var(--steel); }
+
+/* ---------- hero ---------- */
+.hero {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 4.5rem 1.5rem 3rem;
+}
+.hero h1 {
+  font-size: clamp(2rem, 5.2vw, 3.4rem);
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.6em;
+  max-width: 16em;
+}
+.hero h1 .nw { white-space: nowrap; }
+.hero .lead {
+  font-size: 1.15rem;
+  color: var(--steel);
+  max-width: 34em;
+  margin: 0 0 2.6rem;
+}
+.hero .meta { font-size: 0.85rem; color: var(--steel); margin-top: 1.2rem; }
+
+/* the layered-rate figure: the one memorable element */
+.stack {
+  margin: 0;
+  border-top: 2px solid var(--ink);
+}
+.stack-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1.1fr) minmax(16rem, 1.6fr) minmax(9rem, 0.7fr);
+  gap: 1.2rem;
+  align-items: center;
+  padding: 0.95rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.stack-row .layer { font-weight: 700; font-size: 1.05rem; line-height: 1.4; }
+.stack-row .layer small { display: block; font-weight: 400; font-size: 0.85rem; color: var(--steel); }
+.stack-row .where { font-size: 0.85rem; color: var(--steel); line-height: 1.5; }
+.track {
+  position: relative;
+  height: 1.6rem;
+  background:
+    linear-gradient(var(--rule), var(--rule)) 0 50% / 100% 1px no-repeat;
+}
+.track .tick { position: absolute; top: 25%; bottom: 25%; width: 1px; background: var(--rule); }
+.track .band {
+  position: absolute; top: 18%; bottom: 18%;
+  background: var(--signal);
+  border-radius: 2px;
+}
+.track .band.mine { background: var(--ink); }
+.track .band.human { background: var(--human); }
+.track .band.dot { width: 0.6rem; height: 0.6rem; top: 50%; bottom: auto; border-radius: 50%; transform: translate(-50%, -50%); background: var(--steel); }
+.track .na {
+  position: absolute; inset: 18% 0 18% 0;
+  background: repeating-linear-gradient(135deg, transparent 0 6px, var(--rule) 6px 7px);
+  border-radius: 2px;
+}
+.track .label {
+  position: absolute; top: 100%; font-size: 0.75rem; color: var(--steel);
+  white-space: nowrap; transform: translateX(-50%); line-height: 1.2;
+}
+.axis-row { border-bottom: none; padding-top: 0.2rem; }
+.axis { position: relative; height: 1.2rem; font-size: 0.72rem; color: var(--steel); }
+.axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.axis span:first-child { transform: none; }
+.axis span:last-child { transform: translateX(-100%); }
+.stack figcaption { font-size: 0.9rem; color: var(--steel); margin-top: 0.8rem; max-width: 40em; }
+
+/* ---------- page layout ---------- */
+.page {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 0 1.5rem 6rem;
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  gap: 3.5rem;
+}
+nav.toc {
+  position: sticky;
+  top: 1.5rem;
+  align-self: start;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+}
+nav.toc summary { font-weight: 700; cursor: pointer; padding: 0.4rem 0; list-style: none; }
+nav.toc summary::-webkit-details-marker { display: none; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; }
+nav.toc li a {
+  display: flex; justify-content: space-between; gap: 0.6rem;
+  padding: 0.32rem 0 0.32rem 0.75rem;
+  border-left: 2px solid var(--rule);
+  color: var(--ink); text-decoration: none;
+}
+nav.toc li a:hover { border-left-color: var(--signal); color: var(--signal); }
+nav.toc li a.active { border-left-color: var(--signal); color: var(--signal); font-weight: 500; }
+nav.toc .sub a { padding-left: 1.4rem; }
+nav.toc .count { color: var(--steel); font-variant-numeric: tabular-nums; font-size: 0.8rem; }
+nav.toc .count.full { color: var(--ok); }
+nav.toc .reset {
+  margin-top: 1rem; font: inherit; font-size: 0.8rem; color: var(--steel);
+  background: none; border: 1px solid var(--rule); border-radius: 3px; padding: 0.25rem 0.6rem; cursor: pointer;
+}
+nav.toc .reset:hover { color: var(--ink); border-color: var(--steel); }
+
+main { max-width: var(--measure); min-width: 0; }
+main > section { margin-bottom: 4.5rem; scroll-margin-top: 1.5rem; }
+h2 {
+  font-size: 1.75rem; line-height: 1.35; font-weight: 700;
+  margin: 0 0 1rem; padding-top: 1.2rem; border-top: 2px solid var(--ink);
+}
+h3 { font-size: 1.3rem; line-height: 1.45; margin: 2.2rem 0 0.6rem; }
+h4 { font-size: 1.02rem; margin: 1.6rem 0 0.4rem; }
+p { margin: 0 0 1em; }
+ul, ol { padding-left: 1.4em; margin: 0 0 1.2em; }
+li { margin: 0.25em 0; }
+.note { font-size: 0.9rem; color: var(--steel); }
+
+/* principles list */
+.principles { list-style: none; padding: 0; margin: 1.4rem 0 0; }
+.principles li {
+  padding: 0.9rem 0 0.9rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.principles li strong { display: block; font-size: 1.05rem; margin-bottom: 0.15rem; }
+
+/* overview timeline */
+.timeline { list-style: none; padding: 0; margin: 1.2rem 0; }
+.timeline li {
+  display: grid; grid-template-columns: 2.4rem 1fr auto; gap: 0.8rem; align-items: baseline;
+  padding: 0.5rem 0; border-bottom: 1px solid var(--rule);
+}
+.timeline .n {
+  font-weight: 700; color: var(--signal); font-variant-numeric: tabular-nums;
+}
+.timeline .w { font-size: 0.85rem; color: var(--steel); white-space: nowrap; }
+.timeline a { color: var(--ink); text-decoration: none; }
+.timeline a:hover { color: var(--signal); text-decoration: underline; }
+
+/* figure (architecture) */
+.figure { margin: 1.6rem 0 2rem; }
+.figure svg { width: 100%; height: auto; display: block; }
+.figure figcaption { font-size: 0.88rem; color: var(--steel); margin-top: 0.6rem; }
+svg .box { fill: var(--paper-2); stroke: var(--steel); stroke-width: 1.2; }
+svg .box.robot { fill: none; stroke: var(--ink); stroke-width: 2; }
+svg .box.mine { fill: var(--signal-soft); stroke: var(--signal); stroke-width: 1.5; }
+svg .box.dashed { stroke-dasharray: 5 4; }
+svg .box.caution { fill: var(--caution-soft); stroke: var(--caution); stroke-width: 2; }
+svg text { fill: var(--ink); font-family: var(--font); font-size: 14px; }
+svg text.t { font-weight: 700; font-size: 15px; }
+svg text.s { fill: var(--steel); font-size: 12.5px; }
+svg text.e { fill: var(--steel); font-size: 12px; }
+svg .arrow { stroke: var(--steel); stroke-width: 1.6; fill: none; }
+svg .arrow.main { stroke: var(--signal); stroke-width: 2.2; }
+svg .arrow.stop { stroke: var(--caution); stroke-width: 2.6; }
+svg .ah { fill: var(--steel); }
+svg .ah.main { fill: var(--signal); }
+svg .ah.stop { fill: var(--caution); }
+
+/* glossary */
+dl.glossary { margin: 1rem 0 0; }
+dl.glossary dt { font-weight: 700; margin-top: 1rem; }
+dl.glossary dd { margin: 0.15rem 0 0; padding-left: 1rem; border-left: 2px solid var(--rule); }
+
+/* phases on a rail */
+.phases { position: relative; }
+.phase {
+  position: relative;
+  padding-left: 3.4rem;
+  padding-bottom: 2.6rem;
+  scroll-margin-top: 1.5rem;
+}
+.phase::before {
+  content: ""; position: absolute; left: 1.05rem; top: 2.6rem; bottom: 0;
+  width: 2px; background: var(--rule);
+}
+.phase:last-child::before { display: none; }
+.phase-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.2rem 0.9rem; }
+.phase-head .pnum {
+  position: absolute; left: 0; top: 0.1rem;
+  width: 2.2rem; height: 2.2rem; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--signal); color: var(--paper);
+  font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums;
+}
+.phase-head h3 { margin: 0; }
+.phase-head .dur { font-size: 0.85rem; color: var(--steel); }
+.goal { font-size: 1.05rem; margin: 0.5rem 0 1rem; }
+
+/* safety gate callout: caution stripes encode "safety-critical" */
+.gate {
+  position: relative;
+  background: var(--caution-soft);
+  padding: 0.9rem 1rem 0.9rem 1.6rem;
+  margin: 1.4rem 0;
+  border-radius: 0 4px 4px 0;
+}
+.gate::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 0.5rem;
+  background: repeating-linear-gradient(-45deg, var(--caution) 0 7px, #18232C 7px 14px);
+}
+.gate h4 { margin: 0 0 0.3rem; }
+.pitfall { border-left: 3px solid var(--steel); background: var(--paper-2); padding: 0.9rem 1rem 0.9rem 1.2rem; margin: 1.4rem 0; border-radius: 0 4px 4px 0; }
+.pitfall h4 { margin: 0 0 0.3rem; }
+.pitfall ul { margin-bottom: 0; }
+.gate ul { margin-bottom: 0; }
+
+/* done criteria */
+.done { margin-top: 1.4rem; }
+.done h4 { margin-bottom: 0.5rem; }
+.checks { list-style: none; padding: 0; margin: 0; }
+.checks li { margin: 0; }
+.checks label {
+  display: grid; grid-template-columns: 1.4rem 1fr; gap: 0.5rem; align-items: start;
+  padding: 0.35rem 0; cursor: pointer;
+}
+.checks input { width: 1.05rem; height: 1.05rem; margin: 0.42rem 0 0; accent-color: var(--ok); cursor: pointer; }
+.checks input:checked + span { color: var(--steel); text-decoration: line-through; text-decoration-color: var(--ok); }
+
+/* tables */
+.table-wrap { overflow-x: auto; margin: 1rem 0 1.6rem; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; line-height: 1.6; }
+th, td { text-align: left; vertical-align: top; padding: 0.6rem 0.7rem; border-bottom: 1px solid var(--rule); }
+thead th { border-bottom: 2px solid var(--ink); font-weight: 700; white-space: nowrap; }
+tbody th { font-weight: 700; white-space: nowrap; }
+
+/* compare: VLM vs VLA */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2rem; margin: 1.2rem 0 1.6rem; }
+.compare > div { border-top: 1px solid var(--rule); padding-top: 0.8rem; }
+.compare h4 { margin-top: 0; }
+.compare p { font-size: 0.95rem; }
+
+.tree { font-size: 0.82rem; }
+
+footer {
+  max-width: 76rem; margin: 0 auto; padding: 2rem 1.5rem 3rem;
+  border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--steel);
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 980px) {
+  .page { grid-template-columns: 1fr; gap: 1.5rem; }
+  nav.toc { position: static; max-height: none; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule); padding: 0.4rem 0 0.8rem; }
+  nav.toc summary::after { content: "（タップで開閉）"; font-weight: 400; color: var(--steel); font-size: 0.8rem; margin-left: 0.4rem; }
+}
+@media (max-width: 720px) {
+  body { font-size: 16px; }
+  .hero { padding-top: 3rem; }
+  .stack-row { grid-template-columns: 1fr; gap: 0.35rem; padding: 0.9rem 0 1.4rem; }
+  .stack-row .track { margin-bottom: 0.6rem; }
+  .axis-row { display: none; }
+  .compare { grid-template-columns: 1fr; }
+  .phase { padding-left: 2.8rem; }
+  .phase-head .pnum { width: 1.9rem; height: 1.9rem; font-size: 0.9rem; }
+  .phase::before { left: 0.9rem; }
+}
+@media print {
+  nav.toc, .reset { display: none; }
+  .page { grid-template-columns: 1fr; }
+  body { background: #fff; color: #000; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>Unitree G1 を VLM で動かす<span class="nw">ロードマップ</span></h1>
+  <p class="lead">カメラ画像と言葉の指示から、実機の G1 が「見て、考えて、歩いて、止まる」まで。安全を先に固め、シミュレーション、提案モード、自動モードの順に権限を広げていきます。</p>
+
+  <figure class="stack" aria-label="制御の層と動作周期">
+    <div class="stack-row">
+      <div class="layer">人の指示<small>何をしてほしいか</small></div>
+      <div class="track" aria-label="5〜50 秒に 1 回程度">
+        <span class="tick" style="left:20%"></span><span class="tick" style="left:40%"></span><span class="tick" style="left:60%"></span><span class="tick" style="left:80%"></span>
+        <span class="band human" style="left:6%;width:20%"></span>
+      </div>
+      <div class="where">テキスト入力（あとで音声）</div>
+    </div>
+    <div class="stack-row">
+      <div class="layer">VLM<small>どこへ・どれだけ動くかを決める</small></div>
+      <div class="track" aria-label="0.5〜2 Hz">
+        <span class="tick" style="left:20%"></span><span class="tick" style="left:40%"></span><span class="tick" style="left:60%"></span><span class="tick" style="left:80%"></span>
+        <span class="band" style="left:34%;width:12%"></span>
+      </div>
+      <div class="where">GPU PC のローカルモデル、またはクラウド API</div>
+    </div>
+    <div class="stack-row">
+      <div class="layer">実行器と安全ゲート<small>出力を検査し、短い指令に変換する</small></div>
+      <div class="track" aria-label="10〜50 Hz">
+        <span class="tick" style="left:20%"></span><span class="tick" style="left:40%"></span><span class="tick" style="left:60%"></span><span class="tick" style="left:80%"></span>
+        <span class="band mine" style="left:60%;width:14%"></span>
+      </div>
+      <div class="where">自作の Python（このリポジトリで作る部分）</div>
+    </div>
+    <div class="stack-row">
+      <div class="layer">G1 内蔵の歩行制御<small>バランスと足の運びを担当</small></div>
+      <div class="track" aria-label="周期は非公開">
+        <span class="na"></span>
+      </div>
+      <div class="where">Unitree 提供。<code>LocoClient</code> の速度指令で動く</div>
+    </div>
+    <div class="stack-row">
+      <div class="layer">関節モータ<small>トルクと角度の追従</small></div>
+      <div class="track" aria-label="500 Hz">
+        <span class="tick" style="left:20%"></span><span class="tick" style="left:40%"></span><span class="tick" style="left:60%"></span><span class="tick" style="left:80%"></span>
+        <span class="band dot" style="left:93.5%"></span>
+      </div>
+      <div class="where">低レベル指令は 2 ms 周期（500 Hz）</div>
+    </div>
+    <div class="stack-row axis-row">
+      <div></div>
+      <div class="axis" aria-hidden="true">
+        <span style="left:0">0.01 Hz</span><span style="left:20%">0.1</span><span style="left:40%">1</span><span style="left:60%">10</span><span style="left:80%">100</span><span style="left:100%">1000 Hz</span>
+      </div>
+      <div></div>
+    </div>
+    <figcaption>層ごとの動作周期（横軸は対数）。遅い VLM は一番上で方針だけを決め、速い制御ほど下に置きます。青が VLM、斜線は周期が公開されていない Unitree 内蔵部分です。</figcaption>
+  </figure>
+  <p class="meta">情報は 2026 年 11 月時点のものです。SDK やファームウェア、モデルは頻繁に更新されるので、実施前に各リンク先で最新を確認してください。</p>
+</header>
+
+<div class="page">
+  <nav class="toc" aria-label="目次">
+    <details open id="toc-details">
+      <summary>目次と進捗</summary>
+      <ol>
+        <li><a href="#idea">考え方</a></li>
+        <li><a href="#overview">全体の流れ</a></li>
+        <li><a href="#arch">システム構成</a></li>
+        <li><a href="#basics">VLM と VLA の違い</a></li>
+        <li><a href="#prereq">始める前に</a></li>
+        <li class="sub"><a href="#p0" data-phase="p0"><span>0 安全と運用ルール</span><span class="count"></span></a></li>
+        <li class="sub"><a href="#p1" data-phase="p1"><span>1 通信と状態の読み出し</span><span class="count"></span></a></li>
+        <li class="sub"><a href="#p2" data-phase="p2"><span>2 シミュレーション</span><span class="count"></span></a></li>
+        <li class="sub"><a href="#p3" data-phase="p3"><span>3 実機で歩行 API</span><span class="count"></span></a></li>
+        <li class="sub"><a href="#p4" data-phase="p4"><span>4 カメラ画像</span><span class="count"></span></a></li>
+        <li class="sub"><a href="#p5" data-phase="p5"><span>5 VLM を提案モードで</span><span class="count"></span></a></li>
+        <li class="sub"><a href="#p6" data-phase="p6"><span>6 閉ループ化</span><span class="count"></span></a></li>
+        <li class="sub"><a href="#p7" data-phase="p7"><span>7 腕と VLA へ</span><span class="count"></span></a></li>
+        <li><a href="#models">モデルの選び方</a></li>
+        <li><a href="#risks">リスクと対策</a></li>
+        <li><a href="#repo">リポジトリ構成案</a></li>
+        <li><a href="#glossary">用語集</a></li>
+        <li><a href="#links">参考リンク</a></li>
+      </ol>
+      <button type="button" class="reset" id="reset">チェックをすべて外す</button>
+    </details>
+  </nav>
+
+  <main>
+
+    <section id="idea">
+      <h2>考え方</h2>
+      <p>このロードマップは、G1 を「言葉で指示すると、カメラで周りを見て歩き、目的の場所で止まる」状態にすることをゴールにしています。腕を使った物体操作は、歩行がしっかり動いてからの発展課題（フェーズ 7）にしています。</p>
+      <ul class="principles">
+        <li><strong>VLM は「どこへ・どれだけ」だけを決める</strong>二足歩行のバランスは G1 内蔵の歩行制御がすでに解いています。VLM には速度指令に落とせる粒度の判断だけを任せ、学習データを集めずに始められる構成にします。</li>
+        <li><strong>VLM の出力は決められた JSON に限り、実行前に必ず検査する</strong>形式違反や上限超えは停止に置き換えます。1 回の指令は 1 秒で失効させ、次の指令が来なければロボットは自然に止まります。</li>
+        <li><strong>権限は段階的に広げる</strong>シミュレーション、人が 1 手ずつ承認する提案モード、自動モードの順に進めます。各フェーズの完了条件を満たすまで次へ進みません。</li>
+      </ul>
+    </section>
+
+    <section id="overview">
+      <h2>全体の流れ</h2>
+      <p>期間は 1 人で平日に作業する場合の目安です。合計でおよそ 3 か月を見込んでいます。</p>
+      <ol class="timeline">
+        <li><span class="n">0</span><a href="#p0">安全と運用ルールを決める</a><span class="w">1 週間</span></li>
+        <li><span class="n">1</span><a href="#p1">開発 PC と G1 をつなぎ、状態を読む</a><span class="w">1 週間</span></li>
+        <li><span class="n">2</span><a href="#p2">シミュレーションでロボットの「口」を作る</a><span class="w">2 週間</span></li>
+        <li><span class="n">3</span><a href="#p3">実機で歩行 API を叩く</a><span class="w">1 週間</span></li>
+        <li><span class="n">4</span><a href="#p4">頭部カメラの画像を取り出す</a><span class="w">1 週間</span></li>
+        <li><span class="n">5</span><a href="#p5">VLM を提案モードでつなぐ</a><span class="w">2 週間</span></li>
+        <li><span class="n">6</span><a href="#p6">閉ループで自動実行する</a><span class="w">3 週間</span></li>
+        <li><span class="n">7</span><a href="#p7">腕の操作と VLA へ発展させる</a><span class="w">継続</span></li>
+      </ol>
+    </section>
+
+    <section id="arch">
+      <h2>システム構成</h2>
+      <p>最終的に目指す構成です。最初（フェーズ 3〜5）は実行器を有線 LAN でつないだ開発 PC で動かし、フェーズ 6 で G1 の開発用コンピュータ（PC2）へ移します。こうすると Wi-Fi が切れても、ロボットのすぐそばで停止判断ができます。</p>
+      <figure class="figure">
+        <svg viewBox="0 0 860 456" role="img" aria-labelledby="arch-title arch-desc">
+          <title id="arch-title">G1 と VLM をつなぐシステム構成</title>
+          <desc id="arch-desc">操作者 UI と VLM が実行器につながり、実行器が G1 の PC2 から画像を受け取り、PC1 の内蔵歩行制御へ速度指令を送る。リモコンは常に最優先で PC1 を停止できる。</desc>
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah main" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="ahs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah stop" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+
+          <!-- operator UI -->
+          <rect class="box" x="20" y="30" width="200" height="86" rx="6"/>
+          <text class="t" x="36" y="58">操作者 UI</text>
+          <text class="s" x="36" y="80">指示の入力・行動の承認</text>
+          <text class="s" x="36" y="99">ログと画像の監視</text>
+
+          <!-- VLM -->
+          <rect class="box" x="20" y="172" width="200" height="108" rx="6"/>
+          <text class="t" x="36" y="200">VLM</text>
+          <text class="s" x="36" y="222">GPU PC のローカルモデル</text>
+          <text class="s" x="36" y="241">またはクラウド API</text>
+          <text class="e" x="36" y="264">0.5〜2 Hz</text>
+
+          <!-- executor -->
+          <rect class="box mine" x="320" y="150" width="210" height="140" rx="6"/>
+          <text class="t" x="336" y="178">実行器と安全ゲート</text>
+          <text class="s" x="336" y="201">JSON の検査と上限クリップ</text>
+          <text class="s" x="336" y="220">1 秒で失効する速度指令</text>
+          <text class="s" x="336" y="239">通信断・近接で停止</text>
+          <text class="e" x="336" y="271">開発 PC、後で PC2 へ</text>
+
+          <!-- robot boundary -->
+          <rect class="box robot" x="610" y="16" width="232" height="420" rx="10"/>
+          <text class="t" x="626" y="44">G1 EDU の中</text>
+
+          <rect class="box" x="628" y="60" width="196" height="52" rx="6"/>
+          <text class="t" x="644" y="84">頭部カメラ</text>
+          <text class="s" x="644" y="103">RealSense D435i</text>
+
+          <rect class="box" x="628" y="140" width="196" height="76" rx="6"/>
+          <text class="t" x="644" y="165">PC2（開発用）</text>
+          <text class="s" x="644" y="186">Jetson Orin NX 16GB</text>
+          <text class="s" x="644" y="204">画像サーバ / .164</text>
+
+          <rect class="box" x="628" y="252" width="196" height="84" rx="6"/>
+          <text class="t" x="644" y="277">PC1（運動制御）</text>
+          <text class="s" x="644" y="298">内蔵歩行・腕アクション</text>
+          <text class="s" x="644" y="317">sport / arm サービス</text>
+
+          <rect class="box" x="628" y="370" width="196" height="50" rx="6"/>
+          <text class="t" x="644" y="393">関節モータ</text>
+          <text class="s" x="644" y="411">500 Hz</text>
+
+          <!-- remote -->
+          <rect class="box caution" x="320" y="372" width="210" height="64" rx="6"/>
+          <text class="t" x="336" y="398">リモコン（人）</text>
+          <text class="s" x="336" y="418">減衰・停止はいつでも最優先</text>
+
+          <!-- arrows -->
+          <path class="arrow" d="M220,73 C380,73 425,95 425,146" marker-end="url(#ah)"/>
+          <text class="e" x="252" y="64">指示・承認</text>
+
+          <path class="arrow main" d="M318,204 L224,204" marker-end="url(#ahm)"/>
+          <text class="e" x="236" y="194">画像＋指示</text>
+          <path class="arrow main" d="M222,250 L316,250" marker-end="url(#ahm)"/>
+          <text class="e" x="238" y="270">JSON 行動</text>
+
+          <path class="arrow" d="M726,112 L726,136" marker-end="url(#ah)"/>
+          <text class="e" x="734" y="130">USB</text>
+
+          <path class="arrow" d="M628,178 L534,178" marker-end="url(#ah)"/>
+          <text class="e" x="562" y="168">JPEG</text>
+
+          <path class="arrow main" d="M530,262 C576,262 586,294 624,294" marker-end="url(#ahm)"/>
+          <text class="e" x="540" y="318">速度指令</text>
+          <text class="e" x="540" y="334">（DDS）</text>
+
+          <path class="arrow" d="M726,336 L726,366" marker-end="url(#ah)"/>
+
+          <path class="arrow stop" d="M530,404 C584,404 590,326 624,326" marker-end="url(#ahs)"/>
+        </svg>
+        <figcaption>青い矢印が VLM の判断がロボットへ届く経路です。黄色のリモコン経路は、ソフトウェアがどんな状態でも人が止められることを表します。IP アドレスは G1 の既定値で、開発 PC は同じ 192.168.123.x のサブネットに固定 IP で入ります。</figcaption>
+      </figure>
+    </section>
+
+    <section id="basics">
+      <h2>VLM と VLA の違い</h2>
+      <p>機械学習の予備知識がなくても読めるように、このロードマップで登場する 2 種類のモデルを整理しておきます。</p>
+      <div class="compare">
+        <div>
+          <h4>VLM（Vision-Language Model）</h4>
+          <p>画像と文章を入力すると、文章を出力するモデルです。ロボットを直接は動かせないので、出力した文章（ここでは JSON）を自分のプログラムで速度指令に変換します。</p>
+          <p>大量の画像と文章であらかじめ学習済みなので、プロンプトを書くだけで使い始められます。1 回の推論に 0.5〜数秒かかるため、細かい動作の制御には向きません。</p>
+        </div>
+        <div>
+          <h4>VLA（Vision-Language-Action Model）</h4>
+          <p>画像と文章を入力すると、関節角度などのロボットの動作を直接出力するモデルです。毎秒数回から数十回の速さで動作を出し続けます。</p>
+          <p>自分のロボットと自分のタスクで動かすには、たいてい人が遠隔操作して集めた実演データで追加学習（ファインチューニング）が必要です。学習用の GPU も要ります。</p>
+        </div>
+      </div>
+      <p>G1 にはすでに安定した歩行制御が入っているので、「前へ 0.2 m/s で 1 秒」のような指令さえ出せば歩けます。そのため、データ収集なしで始められる VLM から入り、VLM が苦手な手先の操作が必要になった段階で VLA を検討する、という順番にしています。脚ロボットの言語ナビゲーション研究の NaVILA も、VLM に「75 cm 前進」のような中間レベルの言葉の行動を出させ、低レベルの歩行は別の制御器に任せる 2 層構成をとっています。</p>
+    </section>
+
+    <section id="prereq">
+      <h2>始める前に</h2>
+      <h3>機体</h3>
+      <ul>
+        <li><strong>G1 EDU が必要です。</strong>標準の G1 は SDK による二次開発に対応していません。EDU には開発用コンピュータ PC2（Jetson Orin NX 16GB）が載っています。</li>
+        <li>頭部には Livox MID-360（3D LiDAR）と Intel RealSense D435i（深度カメラ）が付いています。このロードマップでは D435i の画像を VLM に渡します。</li>
+        <li>2026 年 9 月に首の関節やデュアルカメラを加えた改良版 G1+ が発表されたと報じられています。G1+ を使う場合は、フェーズ 4 のカメラまわりを機体に合わせて読み替えてください。</li>
+        <li>ファームウェアのバージョンを最初に記録しておきます。SDK の挙動がファームウェアによって変わることがあります。</li>
+      </ul>
+      <h3>計算機</h3>
+      <ul>
+        <li><strong>開発 PC</strong>：Ubuntu 22.04 を推奨します。ROS 2 を併用するなら Humble（<code>unitree_ros2</code> の推奨環境）。有線 LAN ポートが必要です。</li>
+        <li><strong>GPU PC</strong>：ローカルで VLM を動かす場合に使います。VRAM 24GB クラス（RTX 3090 など）があれば 4B〜9B 程度のモデルを動かせます。クラウド API だけを使うなら不要です。</li>
+      </ul>
+      <h3>設備と人</h3>
+      <ul>
+        <li>G1 を吊るせる安全クレーン（ガントリー）と、平らで障害物のない広い床。</li>
+        <li>操作者と、リモコンを持って停止だけを担当する監視者の 2 人体制。</li>
+      </ul>
+    </section>
+
+    <section id="phases-wrap">
+      <h2>ロードマップ</h2>
+      <p>各フェーズの最後にある完了条件のチェックは、このブラウザに保存されます。左の目次で進捗を確認できます。</p>
+      <div class="phases">
+
+        <!-- ===== Phase 0 ===== -->
+        <section class="phase" id="p0">
+          <div class="phase-head"><span class="pnum">0</span><h3>安全と運用ルールを決める</h3><span class="dur">1 週間</span></div>
+          <p class="goal">プログラムを書く前に、リモコンだけで G1 を安全に立たせ、歩かせ、止められるようにします。</p>
+          <h4>やること</h4>
+          <ol>
+            <li>公式の G1 SDK Development Guide の Quick Start とリモコン操作の章を読みます。</li>
+            <li>クレーンで吊った状態での起動、立ち上がり、歩行、減衰（Damp）、吊り下げ停止の手順を通しで練習します。</li>
+            <li>状態遷移（FSM）を体で覚えます。たとえば腕を SDK で動かすにはロックスタンド（メイン運動制御）に入っている必要があり、デバッグモードに入ると内蔵の運動制御が完全に止まって高レベル API が使えなくなります。</li>
+            <li>運用ルールを紙 1 枚にまとめて掲示します。最高速度、作業エリア、役割分担、非常時の手順を書きます。</li>
+          </ol>
+          <div class="gate">
+            <h4>安全ゲート</h4>
+            <ul>
+              <li>減衰（Damp）はその場で関節の力を抜く操作です。立っている G1 は崩れ落ちるので、クレーンなしで減衰させないこと。</li>
+              <li>リモコンのボタンの組み合わせはファームウェアや資料によって違うことがあります。必ず手元の機体の公式マニュアルで確認してください。</li>
+              <li>最初は速度上限を前後 0.3 m/s、旋回 0.3 rad/s 程度に決めておきます（SDK のサンプルが使っている値）。</li>
+            </ul>
+          </div>
+          <div class="done">
+            <h4>完了条件</h4>
+            <ul class="checks">
+              <li><label><input type="checkbox" data-id="p0-1"><span>クレーン下で、立ち上げから歩行、減衰、吊り下げ停止までをリモコンだけで 3 回連続でできる</span></label></li>
+              <li><label><input type="checkbox" data-id="p0-2"><span>運用ルールと非常時手順を 1 枚にまとめ、作業場所に掲示した</span></label></li>
+              <li><label><input type="checkbox" data-id="p0-3"><span>ファームウェアのバージョンを記録した</span></label></li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ===== Phase 1 ===== -->
+        <section class="phase" id="p1">
+          <div class="phase-head"><span class="pnum">1</span><h3>開発 PC と G1 をつなぎ、状態を読む</h3><span class="dur">1 週間</span></div>
+          <p class="goal">開発 PC から G1 の IMU と関節角度を読めるようにします。まだ何も動かしません。</p>
+          <h4>やること</h4>
+          <ol>
+            <li>開発 PC と G1 を LAN ケーブルでつなぎ、開発 PC の有線 NIC を <code>192.168.123.99</code> / <code>255.255.255.0</code> に固定します（例。同じサブネットで空いている番号なら可）。</li>
+            <li>疎通を確認します。PC1（運動制御）は <code>.161</code>、PC2（開発用 Jetson）は <code>.164</code> です。</li>
+            <li><code>unitree_sdk2_python</code> を入れます。CycloneDDS が見つからないと言われたら、README の手順で CycloneDDS 0.10.x をビルドし、<code>CYCLONEDDS_HOME</code> を設定します。</li>
+            <li><code>rt/lowstate</code> トピックを購読して、IMU と関節角度を表示・記録します。G1 のメッセージ型は <code>unitree_hg</code> です（Go2 などの <code>unitree_go</code> とは別）。</li>
+            <li>ROS 2 で扱いたい場合は <code>unitree_ros2</code> を入れ、<code>setup.sh</code> の <code>CYCLONEDDS_URI</code> に NIC 名を書きます。</li>
+          </ol>
+<pre><code><span class="cmt"># 疎通確認</span>
+ping 192.168.123.161
+ping 192.168.123.164
+ssh unitree@192.168.123.164
+
+<span class="cmt"># Python SDK のインストール</span>
+git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
+cd unitree_sdk2_python
+pip3 install -e .</code></pre>
+          <p>状態を読むだけの最小コードです。引数には G1 につながっている NIC 名（<code>ip a</code> で確認。例 <code>enp3s0</code>）を渡します。</p>
+<pre><code><span class="cmt"># read_state.py</span>
+import sys
+import time
+from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize
+from unitree_sdk2py.idl.unitree_hg.msg.dds_ import LowState_
+
+def on_state(msg: LowState_):
+    r, p, y = msg.imu_state.rpy
+    print(f"roll={r:+.3f} pitch={p:+.3f} yaw={y:+.3f}  q0={msg.motor_state[0].q:+.3f}")
+
+ChannelFactoryInitialize(0, sys.argv[1])
+sub = ChannelSubscriber("rt/lowstate", LowState_)
+sub.Init(on_state, 10)
+while True:
+    time.sleep(1.0)</code></pre>
+<pre><code>python3 read_state.py enp3s0</code></pre>
+          <div class="pitfall">
+            <h4>つまずきやすい点</h4>
+            <ul>
+              <li>DDS は 192.168.123.x の NIC 1 つだけにバインドさせます。Wi-Fi や USB-LAN が混ざると探索に失敗しやすくなります。</li>
+              <li>起動直後は DDS の探索に少し時間がかかります。最初の数秒は値が来なくても慌てないこと。</li>
+            </ul>
+          </div>
+          <div class="done">
+            <h4>完了条件</h4>
+            <ul class="checks">
+              <li><label><input type="checkbox" data-id="p1-1"><span>開発 PC で IMU と全関節角度を 10 Hz 以上でファイルに記録できる</span></label></li>
+              <li><label><input type="checkbox" data-id="p1-2"><span>PC2 に SSH でき、PC2 上でも同じスクリプトが動く</span></label></li>
+              <li><label><input type="checkbox" data-id="p1-3"><span>NIC 名の確認から実行までの手順をリポジトリの scripts/ にまとめた</span></label></li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ===== Phase 2 ===== -->
+        <section class="phase" id="p2">
+          <div class="phase-head"><span class="pnum">2</span><h3>シミュレーションでロボットの「口」を作る</h3><span class="dur">2 週間</span></div>
+          <p class="goal">上位のプログラムから見たロボットの窓口（インタフェース）を決め、シミュレーションで中身を差し替えながら動かせるようにします。</p>
+          <h4>やること</h4>
+          <ol>
+            <li>ロボットの窓口を 1 つのクラスに決めます。<code>move(vx, vy, wz, duration)</code>、<code>stop()</code>、<code>gesture(name)</code>、<code>get_image()</code>、<code>get_state()</code> の 5 つで十分です。</li>
+            <li>中身を 3 種類用意します。ログを出すだけのモック、MuJoCo のシミュレーション、実機（フェーズ 3）。設定 1 行で切り替えられるようにします。</li>
+            <li>MuJoCo 版には <code>unitree_rl_gym</code> の G1 歩行ポリシーを使います。<code>deploy_mujoco.py</code> は速度指令が設定ファイルの固定値（<code>cmd_init</code>）なので、外から指令を受け取れるように改造します。</li>
+            <li>MuJoCo のシーンにも頭の位置にカメラを置き、画像を取り出せるようにします。フェーズ 5 の VLM をまずここで試します。</li>
+          </ol>
+<pre><code><span class="cmt"># G1 歩行ポリシーを MuJoCo で動かす（sim2sim）</span>
+<span class="cmt"># 依存関係（MuJoCo など）は README に従って先に入れておく</span>
+git clone https://github.com/unitreerobotics/unitree_rl_gym.git
+cd unitree_rl_gym
+python deploy/deploy_mujoco/deploy_mujoco.py g1.yaml</code></pre>
+          <p class="note">注意：G1 内蔵の歩行制御（sport サービス）はシミュレーションには入っていないので、<code>LocoClient</code> はシミュレーションでは応答しません。そのため MuJoCo 版では強化学習の歩行ポリシーを代役にします。腕の操作を扱うフェーズ 7 では、実機と同じ DDS インタフェースを持つ Isaac Lab ベースの <code>unitree_sim_isaaclab</code> も候補になります。</p>
+          <div class="done">
+            <h4>完了条件</h4>
+            <ul class="checks">
+              <li><label><input type="checkbox" data-id="p2-1"><span>同じ上位コードがモックと MuJoCo の両方で動き、切り替えが設定 1 行で済む</span></label></li>
+              <li><label><input type="checkbox" data-id="p2-2"><span>MuJoCo で前進・横移動・旋回・停止を外部からの指令で実行できる</span></label></li>
+              <li><label><input type="checkbox" data-id="p2-3"><span>MuJoCo の頭部カメラ画像を取得できる</span></label></li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ===== Phase 3 ===== -->
+        <section class="phase" id="p3">
+          <div class="phase-head"><span class="pnum">3</span><h3>実機で歩行 API を叩く</h3><span class="dur">1 週間</span></div>
+          <p class="goal">フェーズ 2 で決めた窓口の実機版を作り、スクリプトから G1 を歩かせて止めます。</p>
+          <h4>やること</h4>
+          <ol>
+            <li>まず公式サンプル <code>g1_loco_client_example.py</code> がそのまま動くことを確認します。動かない場合はファームウェアとの組み合わせを疑います（SDK の速度指令が効かないファームウェアがあるという報告もあります）。</li>
+            <li><code>LocoClient</code> の主な API を確かめます。立ち上がりは <code>Damp()</code> の後に <code>Squat2StandUp()</code>、移動は <code>SetVelocity(vx, vy, omega, duration)</code>、停止は <code>StopMove()</code>、手振りは <code>WaveHand()</code> です。</li>
+            <li><code>Move(vx, vy, vyaw)</code> は既定で 1 秒だけ有効な速度指令を送ります。この「放っておけば止まる」性質を安全設計の土台にします。</li>
+            <li>腕のプリセット動作は <code>G1ArmActionClient</code> で呼べます（<code>"shake hand"</code>、<code>"high five"</code>、<code>"clap"</code>、<code>"release arm"</code> など）。VLM に「手を振る」「握手する」を選ばせるときに使います。</li>
+            <li>符号を実機で確かめます。<code>vy</code> と <code>omega</code> の正の向きを、クレーン下でゆっくり動かして記録します。</li>
+          </ol>
+<pre><code><span class="cmt"># 公式サンプル（クレーン下で、周りに何もないことを確認してから）</span>
+cd unitree_sdk2_python
+python3 example/g1/high_level/g1_loco_client_example.py enp3s0</code></pre>
+          <p>実機版の窓口の骨組みです。上限のクリップと 1 秒失効をここで強制します。</p>
+<pre><code><span class="cmt"># g1_vlm/robot/real.py（例）</span>
+from unitree_sdk2py.core.channel import ChannelFactoryInitialize
+from unitree_sdk2py.g1.loco.g1_loco_client import LocoClient
+from unitree_sdk2py.g1.arm.g1_arm_action_client import G1ArmActionClient, action_map
+
+LIMITS = {"vx": 0.3, "vy": 0.2, "wz": 0.3}   <span class="cmt"># m/s, m/s, rad/s</span>
+MAX_DURATION = 1.0                           <span class="cmt"># 1 回の指令は 1 秒で失効</span>
+
+def clamp(v, lim):
+    return max(-lim, min(lim, v))
+
+class RealG1:
+    def __init__(self, nic: str):
+        ChannelFactoryInitialize(0, nic)
+        self.loco = LocoClient()
+        self.loco.SetTimeout(10.0)
+        self.loco.Init()
+        self.arm = G1ArmActionClient()
+        self.arm.SetTimeout(10.0)
+        self.arm.Init()
+
+    def move(self, vx, vy, wz, duration=1.0):
+        return self.loco.SetVelocity(clamp(vx, LIMITS["vx"]),
+                                     clamp(vy, LIMITS["vy"]),
+                                     clamp(wz, LIMITS["wz"]),
+                                     min(duration, MAX_DURATION))
+
+    def stop(self):
+        self.loco.StopMove()
+
+    def gesture(self, name):
+        if name not in action_map:
+            raise ValueError(f"unknown gesture: {name}")
+        self.arm.ExecuteAction(action_map[name])</code></pre>
+          <div class="gate">
+            <h4>安全ゲート</h4>
+            <ul>
+              <li>最初はクレーンで体重を少し支えた状態で、次にクレーンを緩めて（外さずに）試します。</li>
+              <li>開発 PC の LAN ケーブルを抜いたとき、1 秒以内に止まることを必ず確かめます。</li>
+              <li>高レベル API はデバッグモードでは無効です。低レベル制御のサンプルと混ぜて使わないこと。</li>
+            </ul>
+          </div>
+          <div class="done">
+            <h4>完了条件</h4>
+            <ul class="checks">
+              <li><label><input type="checkbox" data-id="p3-1"><span>スクリプトから 0.2 m/s で 1 秒前進、旋回、停止を 5 回連続で再現できる</span></label></li>
+              <li><label><input type="checkbox" data-id="p3-2"><span>通信を切ると 1 秒以内に停止することを確認した</span></label></li>
+              <li><label><input type="checkbox" data-id="p3-3"><span>vy と旋回の符号の向きを記録した</span></label></li>
+              <li><label><input type="checkbox" data-id="p3-4"><span>腕のプリセット動作を 2 種類以上スクリプトから呼べる</span></label></li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ===== Phase 4 ===== -->
+        <section class="phase" id="p4">
+          <div class="phase-head"><span class="pnum">4</span><h3>頭部カメラの画像を取り出す</h3><span class="dur">1 週間</span></div>
+          <p class="goal">頭部の D435i の画像を、タイムスタンプ付きで VLM を動かすマシンまで届けます。</p>
+          <h4>やること</h4>
+          <ol>
+            <li>D435i は PC2 につながっています。PC2 で画像を取り、ネットワーク越しに配信します。</li>
+            <li>方法は 2 つあります。(a) Unitree の <code>teleimager</code>（UVC・OpenCV・RealSense のカメラを ZeroMQ または WebRTC で配信する画像サーバ。<code>xr_teleoperate</code> でも使われています）。(b) PC2 で <code>pyrealsense2</code> などを使って自作し、JPEG を ZeroMQ で送る。</li>
+            <li>VLM に渡すには 640×480 の JPEG で十分です。撮影時刻と受信時刻を記録し、遅延を測ります。</li>
+            <li>深度画像も取れるようにしておきます。フェーズ 6 で「正面 0.8 m 以内に何かあれば止まる」という、VLM に頼らない安全判定に使います。</li>
+          </ol>
+<pre><code><span class="cmt"># PC2 で teleimager を使う場合（詳細はリポジトリの README を参照）</span>
+ssh unitree@192.168.123.164
+git clone https://github.com/unitreerobotics/teleimager.git
+cd teleimager
+pip install -e ".[server]"</code></pre>
+          <div class="done">
+            <h4>完了条件</h4>
+            <ul class="checks">
+              <li><label><input type="checkbox" data-id="p4-1"><span>VLM を動かすマシンで 5 fps 以上のカラー画像をタイムスタンプ付きで受信できる</span></label></li>
+              <li><label><input type="checkbox" data-id="p4-2"><span>撮影から受信までの遅延を計測し、平均と最大を記録した</span></label></li>
+              <li><label><input type="checkbox" data-id="p4-3"><span>深度画像から正面の最短距離を計算できる</span></label></li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ===== Phase 5 ===== -->
+        <section class="phase" id="p5">
+          <div class="phase-head"><span class="pnum">5</span><h3>VLM を提案モードでつなぐ</h3><span class="dur">2 週間</span></div>
+          <p class="goal">VLM に画像と指示を渡して次の行動を JSON で提案させ、人が承認したものだけを実行します。</p>
+          <h4>やること</h4>
+          <ol>
+            <li>行動の種類を固定します。<code>move</code>（速度と時間）、<code>stop</code>、<code>gesture</code>（腕のプリセット名）、<code>done</code>（達成）、<code>ask</code>（指示が曖昧なときの質問）の 5 つから始めます。</li>
+            <li>出力の JSON 形式を決め、システムプロンプトにロボットの座標系・上限・行動の種類を書きます。</li>
+            <li>バリデータを作ります。JSON として読めない、知らない行動、上限超え、のどれかに当たれば <code>stop</code> に置き換えます。</li>
+            <li>提案モードを作ります。VLM の提案と画像を画面に出し、人が Enter を押したときだけ実行します。</li>
+            <li>画像・プロンプト・VLM の返答・実際に送った指令をすべて記録し、あとで再生できるようにします。</li>
+            <li>まず MuJoCo で、次にクレーン下の実機で試します。</li>
+          </ol>
+          <p>VLM に返させる JSON の例です。</p>
+<pre><code>{
+  "action": "move",
+  "vx": 0.2,
+  "vy": 0.0,
+  "wz": 0.0,
+  "duration": 1.0,
+  "reason": "椅子が正面の約 2 m 先に見えるので前進する"
+}</code></pre>
+          <p>システムプロンプトのたたき台です。</p>
+<pre><code>あなたは人型ロボット G1 の次の行動を決める係です。
+入力：頭部カメラの画像 1 枚、ユーザーの指示、これまでの行動の履歴。
+出力：次の 1 秒の行動を JSON 1 個だけ。JSON 以外は書かない。
+座標：vx は前、vy は左、wz は左回りが正（単位 m/s と rad/s）。
+上限：|vx| ≤ 0.3、|vy| ≤ 0.2、|wz| ≤ 0.3、duration ≤ 1.0。
+行動：move / stop / gesture / done / ask のいずれか。
+人や障害物が 1 m 以内に見えたら stop を返す。
+指示を達成したら done、指示が分からなければ ask を返す。</code></pre>
+          <p class="note">座標の符号はフェーズ 3 で確かめた実機の向きに合わせて書き換えてください。「画像の右」と「ロボットの右」を VLM が取り違えることはよくあるので、正解が分かっている場面の画像で先にテストします。</p>
+          <div class="done">
+            <h4>完了条件</h4>
+            <ul class="checks">
+              <li><label><input type="checkbox" data-id="p5-1"><span>10 種類の指示で JSON の形式違反が 0 件</span></label></li>
+              <li><label><input type="checkbox" data-id="p5-2"><span>提案された行動の 8 割以上を、人が見て妥当と判定できる</span></label></li>
+              <li><label><input type="checkbox" data-id="p5-3"><span>1 回の判断にかかる時間（画像取得から JSON 受信まで）を計測した</span></label></li>
+              <li><label><input type="checkbox" data-id="p5-4"><span>実験ログを再生して、同じ画像に対する返答を見直せる</span></label></li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ===== Phase 6 ===== -->
+        <section class="phase" id="p6">
+          <div class="phase-head"><span class="pnum">6</span><h3>閉ループで自動実行する</h3><span class="dur">3 週間</span></div>
+          <p class="goal">「観測、判断、短く実行、また観測」を自動で回し、簡単な移動タスクを人の承認なしで達成させます。</p>
+          <h4>やること</h4>
+          <ol>
+            <li>提案モードの承認を外し、1 Hz 前後でループを回します。1 回の実行は 1 秒以内に限ります。</li>
+            <li>VLM に頼らない安全ゲートを実行器に入れます（下の囲み）。</li>
+            <li>実行器を PC2 に移します。GPU PC との通信が切れても、PC2 が自分で止まれるようにするためです。</li>
+            <li>タスクを決めて評価します。たとえば「前方の椅子の前まで行って止まって」「右を向いて、人がいたら手を振って」「ドアを探して、その前で止まって」。</li>
+            <li>達成の判定も VLM に任せ（<code>done</code>）、判定が正しかったかを人が記録します。</li>
+          </ol>
+<pre><code><span class="cmt"># ループの骨組み（擬似コード）</span>
+while not finished:
+    frame = camera.latest()                      <span class="cmt"># 画像＋深度＋タイムスタンプ</span>
+    if safety.too_close(frame.depth):            <span class="cmt"># VLM とは独立に判定</span>
+        robot.stop()
+        continue
+    reply = vlm.decide(frame.color, instruction, history)
+    cmd = safety.validate(reply)                 <span class="cmt"># 形式・種類・上限。ダメなら stop</span>
+    if mode == "propose" and not operator.approve(cmd, frame):
+        robot.stop()
+        continue
+    robot.execute(cmd)                           <span class="cmt"># 1 秒で失効する指令</span>
+    history.append(cmd)
+    log.save(frame, reply, cmd)
+    finished = cmd.action == "done" or len(history) &gt;= MAX_STEPS</code></pre>
+          <div class="gate">
+            <h4>安全ゲート（VLM に頼らない部分）</h4>
+            <ul>
+              <li><strong>ウォッチドッグ</strong>：有効な指令が一定時間（例 1.5 秒）来なければ <code>StopMove()</code>。</li>
+              <li><strong>近接停止</strong>：深度画像の中央付近に 0.8 m 以内の物体があれば停止。</li>
+              <li><strong>手数の上限</strong>：1 タスクあたりの最大ステップ数を決め、超えたら停止して人に返す。</li>
+              <li><strong>デッドマン</strong>：操作者がキーやボタンを押している間だけ動く仕組みを、自動モードの初期は残しておく。</li>
+              <li><strong>リモコン</strong>：監視者はいつでもリモコンで止められる位置にいる。</li>
+            </ul>
+          </div>
+          <div class="done">
+            <h4>完了条件</h4>
+            <ul class="checks">
+              <li><label><input type="checkbox" data-id="p6-1"><span>3 タスク × 10 試行で、成功率・介入回数・所要時間を記録した</span></label></li>
+              <li><label><input type="checkbox" data-id="p6-2"><span>停止テストに全て合格：通信断、VLM の異常出力、人の接近、手数超過</span></label></li>
+              <li><label><input type="checkbox" data-id="p6-3"><span>実行器が PC2 上で動き、GPU PC を切っても安全に止まる</span></label></li>
+              <li><label><input type="checkbox" data-id="p6-4"><span>試行中の接触・転倒が 0 件</span></label></li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ===== Phase 7 ===== -->
+        <section class="phase" id="p7">
+          <div class="phase-head"><span class="pnum">7</span><h3>腕の操作と VLA へ発展させる</h3><span class="dur">継続</span></div>
+          <p class="goal">移動の次に、腕を使ったタスクへ広げるための選択肢を整理します。ここから先はテーマに応じて選びます。</p>
+          <h4>腕を自分で動かす</h4>
+          <ul>
+            <li><strong>プリセット動作</strong>：<code>G1ArmActionClient</code> の動作を VLM に選ばせる。フェーズ 3 で用意済み。</li>
+            <li><strong>arm_sdk</strong>：<code>rt/arm_sdk</code> トピックに <code>LowCmd_</code> を送り、内蔵の歩行制御を動かしたまま腕と腰の関節を PD 指令で動かす。ロックスタンドに入っていることが条件で、関節番号 29 の <code>q</code> に 0〜1 を入れて内蔵制御とのブレンド率を指定する。独自に腕を動かすときは、内蔵の腕アクションサービスを止める必要がある。</li>
+            <li><strong>逆運動学（IK）</strong>：SDK はデカルト座標での指令を直接は持たないので、手先の目標位置から 7 関節の角度を計算する。<code>xr_teleoperate</code> は Pinocchio を使っている。VLM が画像上で指した点と深度から 3 次元の目標位置を作れば、「それを取って」の第一歩になる。</li>
+          </ul>
+          <h4>VLA を使う</h4>
+          <ul>
+            <li><strong>UnifoLM-VLA-0</strong>（Unitree、2026 年 1 月公開）：Qwen2.5-VL-7B を基にした VLA。G1 の 12 種類の操作タスク（引き出しの開閉、プラグの抜き差し、ピック＆プレースなど）を単一のポリシーでこなしたと報告。重みとデータセットが Hugging Face にある。</li>
+            <li><strong>GR00T N1.6</strong>（NVIDIA）：3B パラメータの人型ロボット向け VLA。事前学習データに G1 の全身移動操作が含まれ、G1 のピック＆プレース用ファインチューニング済みチェックポイントもある。</li>
+            <li><strong>GR00T 2 / GR00T 2 Turbo</strong>（NVIDIA、2026 年 11 月発表）：未来の映像と行動を同時に予測する world action model。Turbo を G1 で動かすデモでは、推論は Jetson AGX Thor、全身制御は別の Jetson Orin NX で行っている。重みは 12 月に公開予定とされている。</li>
+            <li><strong>データ収集</strong>：<code>xr_teleoperate</code>（Apple Vision Pro・PICO・Quest で遠隔操作し記録）で実演を集め、<code>unitree_lerobot</code> で学習・評価する流れが公式に用意されている。シミュレーションでは <code>unitree_sim_isaaclab</code> でデータ収集や検証ができる。</li>
+          </ul>
+          <p>現実的な発展形は、VLM を「計画する係」、VLA を「1 つの技能を実行する係」とする組み合わせです。たとえば VLM が「棚の前まで歩く」「赤い箱を取る」「台に置く」と分解し、歩行は内蔵制御、「赤い箱を取る」は VLA に任せます。</p>
+          <div class="done">
+            <h4>完了条件（次の判断材料）</h4>
+            <ul class="checks">
+              <li><label><input type="checkbox" data-id="p7-1"><span>腕を使う最初のタスクを 1 つ決めた</span></label></li>
+              <li><label><input type="checkbox" data-id="p7-2"><span>そのタスクを IK で解くか VLA で解くかを、必要なデータ量と計算資源から判断した</span></label></li>
+            </ul>
+          </div>
+        </section>
+
+      </div>
+    </section>
+
+    <section id="models">
+      <h2>モデルの選び方</h2>
+      <p>VLM の呼び出し部分は差し替えられるように作っておき、最初はローカルとクラウドの両方を試して比べるのがおすすめです。</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>候補</th><th>動かす場所</th><th>向いている点</th><th>注意点</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>Gemini Robotics ER 2</th>
+              <td>クラウド API（<code>gemini-robotics-er-2-preview</code>、低遅延版の <code>-streaming-preview</code>）</td>
+              <td>ロボット向けの空間推論。画像上の物体を [y, x]（0〜1000 に正規化）で指せる。関数呼び出しで自作のロボット API を呼ばせられる。</td>
+              <td>プレビュー版で、前の版（ER 1.6）は 2026 年 8 月に提供終了済み。通信が必要。人が写る画像を外部に送るので、写る人の同意が要る。</td>
+            </tr>
+            <tr>
+              <th>Qwen3.5</th>
+              <td>GPU PC でローカル実行（vLLM や SGLang で OpenAI 互換 API として立てる）</td>
+              <td>オープンウェイト（Apache 2.0）で、0.8B から 397B まで揃う。通信不要で、画像を外に出さない。追加学習もできる。</td>
+              <td>VRAM 24GB なら 4B〜9B 程度が現実的。小さいモデルほど空間の判断が弱いので、プロンプトと検査で補う。</td>
+            </tr>
+            <tr>
+              <th>汎用のクラウド VLM</th>
+              <td>各社の API</td>
+              <td>指示の解釈や会話が得意。試作が速い。</td>
+              <td>ロボット専用ではないので、座標や距離の推定は要検証。遅延と費用。</td>
+            </tr>
+            <tr>
+              <th>PC2 上の小型 VLM</th>
+              <td>G1 の Jetson Orin NX 16GB</td>
+              <td>ネットワークに依存しない。</td>
+              <td>メモリと速度が厳しく、画像配信や実行器と取り合いになる。まずは外部の GPU PC で始め、最後に検討する。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">G1 で VLA を使う場合の候補（UnifoLM-VLA-0、GR00T など）はフェーズ 7 を参照してください。</p>
+    </section>
+
+    <section id="risks">
+      <h2>リスクと対策</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>リスク</th><th>対策</th></tr></thead>
+          <tbody>
+            <tr><th>転倒</th><td>クレーン、低い速度上限、平らな床、作業エリアの区切り。減衰はクレーン下でのみ。</td></tr>
+            <tr><th>VLM の誤判断</th><td>行動の種類を固定、JSON 検査と上限クリップ、1 秒失効、提案モードで十分に試してから自動化。</td></tr>
+            <tr><th>判断の遅さ</th><td>止まって考え、短く動く方式にする。1 回の実行は 1 秒以内、ループは 1 Hz 前後。</td></tr>
+            <tr><th>通信断</th><td>ロボット側（PC2）のウォッチドッグで停止。速度指令自体も 1 秒で失効。</td></tr>
+            <tr><th>左右・座標の取り違え</th><td>プロンプトに座標系を明記し、正解の分かる場面でテスト。符号は実機で確認した値を使う。</td></tr>
+            <tr><th>ファームウェア更新で API の挙動が変わる</th><td>バージョンを記録し、更新後は公式サンプルとフェーズ 3 の停止テストをやり直す。</td></tr>
+            <tr><th>プライバシー</th><td>クラウド VLM に人が写る画像を送る場合は事前に同意を得る。ローカル VLM を選ぶ選択肢も残す。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="repo">
+      <h2>リポジトリ構成案</h2>
+      <p>このロードマップを進めながら、このリポジトリを次のように育てていく想定です。</p>
+<pre class="tree"><code>tutorial_unitree_g1/
+├── docs/              <span class="cmt"># GitHub Pages（この資料）</span>
+├── scripts/           <span class="cmt"># 環境構築・起動用の bash</span>
+├── g1_vlm/
+│   ├── robot/         <span class="cmt"># ロボットの窓口と、モック / MuJoCo / 実機の実装</span>
+│   ├── camera/        <span class="cmt"># 画像の取得と配信</span>
+│   ├── brain/         <span class="cmt"># VLM クライアント、プロンプト、JSON の形式</span>
+│   ├── safety/        <span class="cmt"># バリデータ、ウォッチドッグ、近接停止</span>
+│   └── app/           <span class="cmt"># 提案モードと自動モードのループ</span>
+├── configs/           <span class="cmt"># 速度上限、モデル、ネットワーク設定</span>
+└── logs/              <span class="cmt"># 実験ログ（git の管理外）</span></code></pre>
+    </section>
+
+    <section id="glossary">
+      <h2>用語集</h2>
+      <dl class="glossary">
+        <dt>PC1 / PC2</dt>
+        <dd>G1 EDU の中のコンピュータ。PC1（192.168.123.161）は運動制御を担当し、ユーザーは触りません。PC2（192.168.123.164）は開発用の Jetson Orin NX で、自分のプログラムを置けます。</dd>
+        <dt>DDS / CycloneDDS</dt>
+        <dd>G1 の通信の仕組み。ROS 2 と同じ方式で、同じネットワーク上のプログラム同士がトピック名でデータをやりとりします。unitree_sdk2 は CycloneDDS 0.10.x を使います。</dd>
+        <dt>LocoClient</dt>
+        <dd>G1 内蔵の歩行制御（sport サービス）を呼び出すための SDK のクラス。立ち上がり、速度指令、停止、手振りなどができます。</dd>
+        <dt>FSM（状態遷移）</dt>
+        <dd>G1 が今どのモードにいるか。減衰、ロックスタンド、歩行などのモードがあり、モードによって受け付ける指令が変わります。</dd>
+        <dt>減衰（Damp）</dt>
+        <dd>関節の力を抜いて、柔らかく抵抗するだけの状態にすること。立っている G1 は崩れるので、クレーン下で使います。</dd>
+        <dt>デバッグモード</dt>
+        <dd>内蔵の運動制御を完全に止め、低レベル（関節）制御を自分で行うためのモード。このモードでは LocoClient などの高レベル API は使えません。</dd>
+        <dt>arm_sdk</dt>
+        <dd>内蔵の歩行制御を動かしたまま、腕と腰の関節だけを自分で動かすための DDS トピック（<code>rt/arm_sdk</code>）。</dd>
+        <dt>sim2sim / sim2real</dt>
+        <dd>あるシミュレータで作った制御を別のシミュレータや実機に移すこと。移した先で挙動が変わることが多いので、段階を踏んで確かめます。</dd>
+        <dt>ファインチューニング</dt>
+        <dd>学習済みのモデルを、自分のデータで追加学習して特定の用途に合わせること。</dd>
+      </dl>
+    </section>
+
+    <section id="links">
+      <h2>参考リンク</h2>
+      <h4>Unitree 公式</h4>
+      <ul>
+        <li><a href="https://support.unitree.com/home/en/G1_developer">G1 SDK Development Guide</a></li>
+        <li><a href="https://github.com/unitreerobotics/unitree_sdk2_python">unitree_sdk2_python</a>（Python SDK）／<a href="https://github.com/unitreerobotics/unitree_sdk2">unitree_sdk2</a>（C++ SDK）</li>
+        <li><a href="https://github.com/unitreerobotics/unitree_ros2">unitree_ros2</a></li>
+        <li><a href="https://github.com/unitreerobotics/unitree_rl_gym">unitree_rl_gym</a>（歩行ポリシーの学習と MuJoCo での sim2sim）</li>
+        <li><a href="https://github.com/unitreerobotics/unitree_mujoco">unitree_mujoco</a></li>
+        <li><a href="https://github.com/unitreerobotics/unitree_sim_isaaclab">unitree_sim_isaaclab</a></li>
+        <li><a href="https://github.com/unitreerobotics/teleimager">teleimager</a>（画像サーバ）</li>
+        <li><a href="https://github.com/unitreerobotics/xr_teleoperate">xr_teleoperate</a>（XR デバイスによる遠隔操作とデータ記録）</li>
+        <li><a href="https://github.com/unitreerobotics/unitree_lerobot">unitree_lerobot</a></li>
+        <li><a href="https://github.com/unitreerobotics/unifolm-vla">UnifoLM-VLA-0</a>（<a href="https://unigen-x.github.io/unifolm-vla.github.io/">プロジェクトページ</a>）</li>
+      </ul>
+      <h4>モデル</h4>
+      <ul>
+        <li><a href="https://ai.google.dev/gemini-api/docs/robotics-overview">Gemini Robotics ER（Gemini API ドキュメント）</a></li>
+        <li><a href="https://huggingface.co/Qwen">Qwen（Hugging Face）</a></li>
+        <li><a href="https://github.com/NVIDIA/Isaac-GR00T">Isaac GR00T</a>／<a href="https://research.nvidia.com/labs/gear/gr00t-n1_6/">GR00T N1.6</a>／<a href="https://research.nvidia.com/labs/gear/gr00t-2">GR00T 2</a></li>
+      </ul>
+      <h4>研究・解説</h4>
+      <ul>
+        <li><a href="https://navila-bot.github.io/">NaVILA: Legged Robot Vision-Language-Action Model for Navigation</a>（RSS 2025）</li>
+        <li><a href="https://huggingface.co/docs/lerobot/en/unitree_g1">LeRobot の Unitree G1 ドキュメント</a></li>
+        <li><a href="https://dev.classmethod.jp/articles/unitree-g1-basic/">Unitree G1 を動かす前の基本をまとめてみた（DevelopersIO）</a></li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <p>tutorial_unitree_g1 ／ 2026 年 11 月作成。記載の API・モデル名・数値は作成時点の情報です。実機での作業は必ず各公式資料と機体のマニュアルに従ってください。</p>
+</footer>
+
+<script>
+(function () {
+  var KEY = "tutorial_unitree_g1:roadmap:v1";
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { state = {}; }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ }
+  }
+
+  var boxes = Array.prototype.slice.call(document.querySelectorAll(".checks input[type=checkbox]"));
+
+  function updateCounts() {
+    document.querySelectorAll("nav.toc a[data-phase]").forEach(function (a) {
+      var id = a.getAttribute("data-phase");
+      var mine = boxes.filter(function (b) { return b.getAttribute("data-id").indexOf(id + "-") === 0; });
+      var done = mine.filter(function (b) { return b.checked; }).length;
+      var el = a.querySelector(".count");
+      el.textContent = done + "/" + mine.length;
+      el.classList.toggle("full", mine.length > 0 && done === mine.length);
+    });
+  }
+
+  boxes.forEach(function (b) {
+    var id = b.getAttribute("data-id");
+    b.checked = !!state[id];
+    b.addEventListener("change", function () {
+      if (b.checked) { state[id] = true; } else { delete state[id]; }
+      save();
+      updateCounts();
+    });
+  });
+  updateCounts();
+
+  document.getElementById("reset").addEventListener("click", function () {
+    boxes.forEach(function (b) { b.checked = false; });
+    state = {};
+    save();
+    updateCounts();
+  });
+
+  // On narrow screens, start with the table of contents closed.
+  var details = document.getElementById("toc-details");
+  if (window.matchMedia("(max-width: 980px)").matches) { details.removeAttribute("open"); }
+
+  // Highlight the section currently in view.
+  var links = Array.prototype.slice.call(document.querySelectorAll("nav.toc a[href^='#']"));
+  var targets = links.map(function (a) { return document.querySelector(a.getAttribute("href")); });
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          links.forEach(function (a) { a.classList.toggle("active", a.getAttribute("href") === "#" + en.target.id); });
+        }
+      });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    targets.forEach(function (t) { if (t) { io.observe(t); } });
+  }
+})();
+</script>
+</body>
+</html>
