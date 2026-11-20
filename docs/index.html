@@ -229,6 +229,8 @@ svg text.e { fill: var(--steel); font-size: 12px; }
 svg .arrow { stroke: var(--steel); stroke-width: 1.6; fill: none; }
 svg .arrow.main { stroke: var(--signal); stroke-width: 2.2; }
 svg .arrow.stop { stroke: var(--caution); stroke-width: 2.6; }
+svg .arrow.none { stroke-dasharray: 5 5; }
+svg .xmark { stroke: var(--steel); stroke-width: 2.6; stroke-linecap: round; }
 svg .ah { fill: var(--steel); }
 svg .ah.main { fill: var(--signal); }
 svg .ah.stop { fill: var(--caution); }
@@ -358,7 +360,7 @@ footer {
         <span class="tick" style="left:20%"></span><span class="tick" style="left:40%"></span><span class="tick" style="left:60%"></span><span class="tick" style="left:80%"></span>
         <span class="band" style="left:34%;width:12%"></span>
       </div>
-      <div class="where">GPU PC のローカルモデル、またはクラウド API</div>
+      <div class="where">リモート PC の GPU、またはリモート PC から呼ぶクラウド API</div>
     </div>
     <div class="stack-row">
       <div class="layer">実行器と安全ゲート<small>出力を検査し、短い指令に変換する</small></div>
@@ -405,6 +407,7 @@ footer {
         <li><a href="#arch">システム構成</a></li>
         <li><a href="#basics">VLM と VLA の違い</a></li>
         <li><a href="#prereq">始める前に</a></li>
+        <li><a href="#offline">G1 がオフラインのときの作業</a></li>
         <li class="sub"><a href="#p0" data-phase="p0"><span>0 安全と運用ルール</span><span class="count"></span></a></li>
         <li class="sub"><a href="#p1" data-phase="p1"><span>1 通信と状態の読み出し</span><span class="count"></span></a></li>
         <li class="sub"><a href="#p2" data-phase="p2"><span>2 シミュレーション</span><span class="count"></span></a></li>
@@ -440,7 +443,7 @@ footer {
       <p>期間は 1 人で平日に作業する場合の目安です。合計でおよそ 3 か月を見込んでいます。</p>
       <ol class="timeline">
         <li><span class="n">0</span><a href="#p0">安全と運用ルールを決める</a><span class="w">1 週間</span></li>
-        <li><span class="n">1</span><a href="#p1">開発 PC と G1 をつなぎ、状態を読む</a><span class="w">1 週間</span></li>
+        <li><span class="n">1</span><a href="#p1">リモート PC と G1 をつなぎ、状態を読む</a><span class="w">1 週間</span></li>
         <li><span class="n">2</span><a href="#p2">シミュレーションでロボットの「口」を作る</a><span class="w">2 週間</span></li>
         <li><span class="n">3</span><a href="#p3">実機で歩行 API を叩く</a><span class="w">1 週間</span></li>
         <li><span class="n">4</span><a href="#p4">頭部カメラの画像を取り出す</a><span class="w">1 週間</span></li>
@@ -452,7 +455,7 @@ footer {
 
     <section id="arch">
       <h2>システム構成</h2>
-      <p>最終的に目指す構成です。最初（フェーズ 3〜5）は実行器を有線 LAN でつないだ開発 PC で動かし、フェーズ 6 で G1 の開発用コンピュータ（PC2）へ移します。こうすると Wi-Fi が切れても、ロボットのすぐそばで停止判断ができます。</p>
+      <p>最終的に目指す構成です。最初（フェーズ 3〜5）は実行器を G1 と有線 LAN でつながったリモート PC で動かし、フェーズ 6 で G1 の開発用コンピュータ（PC2）へ移します。こうするとリモート PC との通信が切れても、ロボットのすぐそばで停止判断ができます。G1 はインターネットに出られないので、VLM はリモート PC の GPU で動かすか、リモート PC からクラウド API を呼びます。操作者はローカル PC から SSH でリモート PC に入って操作します。</p>
       <figure class="figure">
         <svg viewBox="0 0 860 456" role="img" aria-labelledby="arch-title arch-desc">
           <title id="arch-title">G1 と VLM をつなぐシステム構成</title>
@@ -467,13 +470,13 @@ footer {
           <rect class="box" x="20" y="30" width="200" height="86" rx="6"/>
           <text class="t" x="36" y="58">操作者 UI</text>
           <text class="s" x="36" y="80">指示の入力・行動の承認</text>
-          <text class="s" x="36" y="99">ログと画像の監視</text>
+          <text class="s" x="36" y="99">ローカル PC のブラウザから</text>
 
           <!-- VLM -->
           <rect class="box" x="20" y="172" width="200" height="108" rx="6"/>
           <text class="t" x="36" y="200">VLM</text>
-          <text class="s" x="36" y="222">GPU PC のローカルモデル</text>
-          <text class="s" x="36" y="241">またはクラウド API</text>
+          <text class="s" x="36" y="222">リモート PC の GPU で実行</text>
+          <text class="s" x="36" y="241">またはクラウド API を呼ぶ</text>
           <text class="e" x="36" y="264">0.5〜2 Hz</text>
 
           <!-- executor -->
@@ -482,7 +485,7 @@ footer {
           <text class="s" x="336" y="201">JSON の検査と上限クリップ</text>
           <text class="s" x="336" y="220">1 秒で失効する速度指令</text>
           <text class="s" x="336" y="239">通信断・近接で停止</text>
-          <text class="e" x="336" y="271">開発 PC、後で PC2 へ</text>
+          <text class="e" x="336" y="271">リモート PC、後で PC2 へ</text>
 
           <!-- robot boundary -->
           <rect class="box robot" x="610" y="16" width="232" height="420" rx="10"/>
@@ -513,7 +516,7 @@ footer {
 
           <!-- arrows -->
           <path class="arrow" d="M220,73 C380,73 425,95 425,146" marker-end="url(#ah)"/>
-          <text class="e" x="252" y="64">指示・承認</text>
+          <text class="e" x="252" y="64">指示・承認（SSH 経由）</text>
 
           <path class="arrow main" d="M318,204 L224,204" marker-end="url(#ahm)"/>
           <text class="e" x="236" y="194">画像＋指示</text>
@@ -534,7 +537,7 @@ footer {
 
           <path class="arrow stop" d="M530,404 C584,404 590,326 624,326" marker-end="url(#ahs)"/>
         </svg>
-        <figcaption>青い矢印が VLM の判断がロボットへ届く経路です。黄色のリモコン経路は、ソフトウェアがどんな状態でも人が止められることを表します。IP アドレスは G1 の既定値で、開発 PC は同じ 192.168.123.x のサブネットに固定 IP で入ります。</figcaption>
+        <figcaption>青い矢印が VLM の判断がロボットへ届く経路です。黄色のリモコン経路は、ソフトウェアがどんな状態でも人が止められることを表します。IP アドレスは G1 の既定値で、リモート PC の G1 側 NIC は同じ 192.168.123.x のサブネットに固定 IP で入ります。</figcaption>
       </figure>
     </section>
 
@@ -565,16 +568,172 @@ footer {
         <li>2026 年 9 月に首の関節やデュアルカメラを加えた改良版 G1+ が発表されたと報じられています。G1+ を使う場合は、フェーズ 4 のカメラまわりを機体に合わせて読み替えてください。</li>
         <li>ファームウェアのバージョンを最初に記録しておきます。SDK の挙動がファームウェアによって変わることがあります。</li>
       </ul>
-      <h3>計算機</h3>
+      <h3>ネットワーク構成</h3>
+      <p>このロードマップは次の構成を前提にしています。インターネットにつながっているのはリモート PC だけで、G1 はつながっていません。</p>
+      <figure class="figure">
+        <svg viewBox="0 0 860 290" role="img" aria-labelledby="net-title net-desc">
+          <title id="net-title">ローカル PC、リモート PC、G1 のネットワーク構成</title>
+          <desc id="net-desc">ローカル PC から SSH でリモート PC に入り、リモート PC から有線 LAN で G1 に入る。インターネットにつながっているのはリモート PC だけで、G1 はつながっていない。</desc>
+          <defs>
+            <marker id="nah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+            <marker id="nahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah main" d="M0,0 L10,5 L0,10 z"/></marker>
+          </defs>
+
+          <rect class="box" x="330" y="16" width="200" height="60" rx="30"/>
+          <text class="t" x="430" y="42" text-anchor="middle">インターネット</text>
+          <text class="s" x="430" y="62" text-anchor="middle">GitHub・PyPI・クラウド API</text>
+
+          <rect class="box" x="20" y="140" width="210" height="96" rx="6"/>
+          <text class="t" x="36" y="168">ローカル PC</text>
+          <text class="s" x="36" y="190">手元の作業用 PC</text>
+          <text class="s" x="36" y="209">ターミナルとブラウザ</text>
+
+          <rect class="box mine" x="330" y="128" width="200" height="146" rx="6"/>
+          <text class="t" x="346" y="156">リモート PC</text>
+          <text class="s" x="346" y="178">SDK・実行器・VLM 呼び出し</text>
+          <text class="e" x="346" y="206">NIC 1：インターネット側</text>
+          <text class="e" x="346" y="226">NIC 2：192.168.123.99</text>
+          <text class="e" x="346" y="246">（NIC 2 はゲートウェイなし）</text>
+
+          <rect class="box robot" x="630" y="118" width="210" height="160" rx="10"/>
+          <text class="t" x="646" y="146">G1 EDU</text>
+          <text class="s" x="646" y="172">PC2（開発用）.164</text>
+          <text class="s" x="646" y="194">PC1（運動制御）.161</text>
+          <text class="e" x="646" y="222">インターネットなし</text>
+
+          <path class="arrow main" d="M230,188 L326,188" marker-end="url(#nahm)"/>
+          <text class="e" x="266" y="178">SSH</text>
+
+          <path class="arrow main" d="M530,198 L626,198" marker-end="url(#nahm)"/>
+          <text class="e" x="550" y="188">有線 LAN</text>
+
+          <path class="arrow" d="M430,126 L430,80" marker-start="url(#nah)" marker-end="url(#nah)"/>
+          <text class="e" x="440" y="108">git・pip・API</text>
+
+          <path class="arrow none" d="M690,116 L534,52"/>
+          <line class="xmark" x1="604" y1="74" x2="618" y2="88"/>
+          <line class="xmark" x1="618" y1="74" x2="604" y2="88"/>
+          <text class="e" x="632" y="72">つながっていない</text>
+        </svg>
+        <figcaption>操作はすべてリモート PC を経由します。G1 へのソフトの導入、時刻合わせ、クラウド API の呼び出しもリモート PC が窓口になります。</figcaption>
+      </figure>
       <ul>
-        <li><strong>開発 PC</strong>：Ubuntu 22.04 を推奨します。ROS 2 を併用するなら Humble（<code>unitree_ros2</code> の推奨環境）。有線 LAN ポートが必要です。</li>
-        <li><strong>GPU PC</strong>：ローカルで VLM を動かす場合に使います。VRAM 24GB クラス（RTX 3090 など）があれば 4B〜9B 程度のモデルを動かせます。クラウド API だけを使うなら不要です。</li>
+        <li><strong>ローカル PC</strong>：手元の作業用 PC。リモート PC に SSH で入り、ブラウザで操作者 UI を開きます。</li>
+        <li><strong>リモート PC</strong>：G1 と有線 LAN でつながり、インターネットにも出られる PC。SDK と実行器を動かし、VLM を呼び出し、G1 に必要なファイルを持ち込む窓口になります。Ubuntu 22.04 を推奨します。ROS 2 を併用するなら Humble（<code>unitree_ros2</code> の推奨環境）。G1 側とインターネット側で NIC が 2 つ必要です。</li>
+        <li><strong>VLM を動かす GPU</strong>：ローカルで VLM を動かすなら、リモート PC に VRAM 24GB クラス（RTX 3090 など）の GPU があると 4B〜9B 程度のモデルを動かせます。リモート PC に GPU がなければ、リモート PC から届く別の GPU マシンか、クラウド API を使います。</li>
+        <li><strong>G1（PC2）</strong>：インターネットに出られないので、ソフトの導入と時刻合わせはリモート PC 経由で行います（次の節）。</li>
       </ul>
       <h3>設備と人</h3>
       <ul>
         <li>G1 を吊るせる安全クレーン（ガントリー）と、平らで障害物のない広い床。</li>
-        <li>操作者と、リモコンを持って停止だけを担当する監視者の 2 人体制。</li>
+        <li>操作者と、リモコンを持って停止だけを担当する監視者の 2 人体制。操作者がローカル PC で G1 から離れた場所にいる場合でも、監視者は必ず G1 のそばにいます。</li>
       </ul>
+    </section>
+
+    <section id="offline">
+      <h2>G1 がオフラインのときの作業</h2>
+      <p>この構成では作業はすべてリモート PC を経由します。G1 はインターネットに出られないので、G1 の中（PC2）では <code>git clone</code>、<code>pip install</code>、<code>apt install</code> がそのままでは動きません。次の 5 つで回します。おすすめは、PC2 の初期セットアップを 4 の一時共有で一度に済ませ、その後の自作コードの更新は 3 の持ち込みで行うやり方です。</p>
+
+      <h3>1. ローカル PC から PC2 まで SSH を通す</h3>
+      <p>ローカル PC の <code>~/.ssh/config</code> に踏み台（ProxyJump）の設定を書くと、ローカル PC から 1 コマンドで PC2 に入れます。<code>scp</code> や <code>rsync</code> も同じ名前で使えます。</p>
+<pre><code><span class="cmt"># ローカル PC の ~/.ssh/config に追記</span>
+Host g1-remote
+    HostName &lt;リモート PC のアドレス&gt;
+    User &lt;リモート PC のユーザー名&gt;
+
+Host g1-pc2
+    HostName 192.168.123.164
+    User unitree
+    ProxyJump g1-remote</code></pre>
+<pre><code><span class="cmt"># ローカル PC で実行</span>
+ssh g1-remote
+ssh g1-pc2</code></pre>
+      <p>リモート PC で動かす Web 画面（フェーズ 5 の操作者 UI など）は、ポート転送でローカル PC のブラウザから開きます。下のコマンドのあと、ローカル PC のブラウザで <code>http://localhost:8080</code> を開きます（ポート番号は例）。</p>
+<pre><code><span class="cmt"># ローカル PC で実行</span>
+ssh -L 8080:localhost:8080 g1-remote</code></pre>
+
+      <h3>2. PC2 の環境を調べる</h3>
+      <p>何を持ち込むかを決めるために、最初に一度だけ PC2 の中身を記録します。PC2 は ARM（aarch64）の Jetson なので、多くの場合 x86_64 のリモート PC とは CPU の種類も Python の版も違います。</p>
+<pre><code><span class="cmt"># ローカル PC で実行</span>
+ssh g1-pc2
+
+<span class="cmt"># PC2 で実行</span>
+uname -m
+cat /etc/os-release
+python3 --version
+pip3 list
+ip -br a
+ip route
+timedatectl</code></pre>
+
+      <h3>3. ファイルを持ち込む（ふだんの作業）</h3>
+      <p>リモート PC で取ってきたものを <code>rsync</code> で PC2 に送ります。自作コード、GitHub のリポジトリ、モデルの重みなどはこの方法で十分です。</p>
+<pre><code><span class="cmt"># リモート PC で実行</span>
+mkdir -p ~/g1_offline
+cd ~/g1_offline
+git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
+rsync -av ~/g1_offline/ unitree@192.168.123.164:~/g1_offline/</code></pre>
+      <p>Python のパッケージは、PC2 用の wheel をリモート PC でダウンロードしてから送ります。<code>--python-version</code> は手順 2 で調べた PC2 の版に合わせます（下の 3.8 は例）。</p>
+<pre><code><span class="cmt"># リモート PC で実行</span>
+pip3 download -d ~/g1_offline/wheels --platform manylinux2014_aarch64 --python-version 3.8 --only-binary=:all: numpy pyzmq
+rsync -av ~/g1_offline/wheels/ unitree@192.168.123.164:~/g1_offline/wheels/
+
+<span class="cmt"># PC2 で実行</span>
+pip3 install --no-index --find-links ~/g1_offline/wheels numpy pyzmq</code></pre>
+      <p class="note">aarch64 用の wheel がないパッケージ、C のライブラリ（CycloneDDS、libjpeg-turbo など）、apt のパッケージ、conda の環境はこの方法では入れにくいので、4 を使います。</p>
+
+      <h3>4. 一時的にインターネットを共有する（初期セットアップ）</h3>
+      <p>リモート PC で NAT（IP マスカレード）を有効にし、PC2 の既定の経路をリモート PC に向けると、PC2 から一時的にインターネットに出られます。SDK やカメラ配信ソフトの導入はこの間にまとめて済ませ、終わったら必ず元に戻します。</p>
+      <div class="gate">
+        <h4>安全ゲート</h4>
+        <ul>
+          <li>所属先のネットワーク規程で、研究用機器をこの形でインターネットにつないでよいかを先に確認します。</li>
+          <li>設定を変えるのは PC2 だけです。運動制御の PC1（.161）には触りません。</li>
+          <li>共有している間はロボットを動かさず、セットアップ専用の時間にします。</li>
+        </ul>
+      </div>
+      <p>以下の <code>&lt;NET_IF&gt;</code> はリモート PC のインターネット側 NIC、<code>&lt;G1_IF&gt;</code> はリモート PC の G1 側 NIC、<code>&lt;PC2_IF&gt;</code> は PC2 で 192.168.123.164 が付いている NIC の名前です（それぞれ <code>ip -br a</code> で確認）。</p>
+<pre><code><span class="cmt"># リモート PC で実行（今の値を控えてから共有を始める）</span>
+sysctl net.ipv4.ip_forward
+sudo sysctl -w net.ipv4.ip_forward=1
+sudo iptables -t nat -A POSTROUTING -s 192.168.123.0/24 -o &lt;NET_IF&gt; -j MASQUERADE
+sudo iptables -I FORWARD -i &lt;G1_IF&gt; -o &lt;NET_IF&gt; -s 192.168.123.0/24 -j ACCEPT
+sudo iptables -I FORWARD -i &lt;NET_IF&gt; -o &lt;G1_IF&gt; -d 192.168.123.0/24 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+<span class="cmt"># PC2 で実行（元の経路を控えてから、既定の経路をリモート PC に向ける）</span>
+ip route
+sudo ip route replace default via 192.168.123.99 dev &lt;PC2_IF&gt;
+ping -c 3 8.8.8.8
+getent hosts github.com</code></pre>
+      <p>名前解決（<code>getent hosts</code>）だけが失敗する場合は、PC2 の DNS サーバを一時的に設定します。DNS サーバのアドレスは、リモート PC で <code>resolvectl status</code> を実行すると分かります。</p>
+<pre><code><span class="cmt"># PC2 で実行（systemd-resolved の場合）</span>
+sudo resolvectl dns &lt;PC2_IF&gt; &lt;DNS サーバ&gt;</code></pre>
+      <p>終わったら元に戻します。どの設定も再起動で消えますが、手で戻しておくと確実です。</p>
+<pre><code><span class="cmt"># PC2 で実行</span>
+sudo ip route del default via 192.168.123.99
+sudo resolvectl revert &lt;PC2_IF&gt;
+
+<span class="cmt"># リモート PC で実行（ip_forward は控えておいた値に戻す）</span>
+sudo iptables -t nat -D POSTROUTING -s 192.168.123.0/24 -o &lt;NET_IF&gt; -j MASQUERADE
+sudo iptables -D FORWARD -i &lt;G1_IF&gt; -o &lt;NET_IF&gt; -s 192.168.123.0/24 -j ACCEPT
+sudo iptables -D FORWARD -i &lt;NET_IF&gt; -o &lt;G1_IF&gt; -d 192.168.123.0/24 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+sudo sysctl -w net.ipv4.ip_forward=0</code></pre>
+      <p class="note">Docker を使っているリモート PC は、もともと <code>ip_forward</code> が 1 のことが多いので、0 に戻さず控えた値のままにします。PC2 にもともと別の既定の経路があった場合は、控えておいた内容で戻してください。リモート PC で ufw を使っている場合は、転送（route）の許可も必要です。</p>
+
+      <h3>5. 時刻を合わせる</h3>
+      <p>PC2 はインターネット上の時刻サーバに届かないので、時計が少しずつずれていきます。フェーズ 4 の遅延計測やログの突き合わせが狂うので、リモート PC を時刻サーバにして合わせます。</p>
+<pre><code><span class="cmt"># リモート PC で実行</span>
+sudo apt install -y chrony</code></pre>
+      <p>リモート PC の <code>/etc/chrony/chrony.conf</code> に次の 2 行を足してから再起動します。</p>
+<pre><code>allow 192.168.123.0/24
+local stratum 10</code></pre>
+<pre><code><span class="cmt"># リモート PC で実行</span>
+sudo systemctl restart chrony</code></pre>
+      <p>PC2 が <code>systemd-timesyncd</code> を使っている場合は、PC2 の <code>/etc/systemd/timesyncd.conf</code> の <code>[Time]</code> に <code>NTP=192.168.123.99</code> を書いてから再起動します。chrony を使っている場合は、PC2 の chrony の設定に <code>server 192.168.123.99 iburst</code> を足します。</p>
+<pre><code><span class="cmt"># PC2 で実行</span>
+sudo systemctl restart systemd-timesyncd
+timedatectl timesync-status</code></pre>
+      <p class="note">リモート PC で ufw を使っている場合は、G1 側から UDP 123 番を受け付けるようにします。どうしても時刻が合わないときは、遅延を「リモート PC が画像を要求してから届くまで」の往復時間で測れば、1 つの時計だけで計測できます。</p>
     </section>
 
     <section id="phases-wrap">
@@ -613,26 +772,30 @@ footer {
 
         <!-- ===== Phase 1 ===== -->
         <section class="phase" id="p1">
-          <div class="phase-head"><span class="pnum">1</span><h3>開発 PC と G1 をつなぎ、状態を読む</h3><span class="dur">1 週間</span></div>
-          <p class="goal">開発 PC から G1 の IMU と関節角度を読めるようにします。まだ何も動かしません。</p>
+          <div class="phase-head"><span class="pnum">1</span><h3>リモート PC と G1 をつなぎ、状態を読む</h3><span class="dur">1 週間</span></div>
+          <p class="goal">ローカル PC から入ったリモート PC で、G1 の IMU と関節角度を読めるようにします。まだ何も動かしません。</p>
           <h4>やること</h4>
           <ol>
-            <li>開発 PC と G1 を LAN ケーブルでつなぎ、開発 PC の有線 NIC を <code>192.168.123.99</code> / <code>255.255.255.0</code> に固定します（例。同じサブネットで空いている番号なら可）。</li>
-            <li>疎通を確認します。PC1（運動制御）は <code>.161</code>、PC2（開発用 Jetson）は <code>.164</code> です。</li>
-            <li><code>unitree_sdk2_python</code> を入れます。CycloneDDS が見つからないと言われたら、README の手順で CycloneDDS 0.10.x をビルドし、<code>CYCLONEDDS_HOME</code> を設定します。</li>
+            <li>リモート PC と G1 を LAN ケーブルでつなぎ、リモート PC の G1 側 NIC を <code>192.168.123.99</code> / <code>255.255.255.0</code> に固定します（例。同じサブネットで空いている番号なら可）。<strong>ゲートウェイと DNS は空欄</strong>にします。入れるとリモート PC のインターネット側の通信が壊れることがあります。</li>
+            <li>ローカル PC に踏み台の SSH 設定を入れ（<a href="#offline">G1 がオフラインのときの作業</a>の 1）、リモート PC から疎通を確認します。PC1（運動制御）は <code>.161</code>、PC2（開発用 Jetson）は <code>.164</code> です。</li>
+            <li>リモート PC に <code>unitree_sdk2_python</code> を入れます。リモート PC はインターネットに出られるので、ふつうに入れられます。CycloneDDS が見つからないと言われたら、README の手順で CycloneDDS 0.10.x をビルドし、<code>CYCLONEDDS_HOME</code> を設定します。</li>
             <li><code>rt/lowstate</code> トピックを購読して、IMU と関節角度を表示・記録します。G1 のメッセージ型は <code>unitree_hg</code> です（Go2 などの <code>unitree_go</code> とは別）。</li>
-            <li>ROS 2 で扱いたい場合は <code>unitree_ros2</code> を入れ、<code>setup.sh</code> の <code>CYCLONEDDS_URI</code> に NIC 名を書きます。</li>
+            <li>ROS 2 で扱いたい場合は <code>unitree_ros2</code> を入れ、<code>setup.sh</code> の <code>CYCLONEDDS_URI</code> に G1 側の NIC 名を書きます。</li>
+            <li>PC2 でも同じスクリプトを動かせるようにします。PC2 の環境を調べ、SDK が入っていなければ<a href="#offline">オフラインの手順</a>で入れます（4 の一時共有を使うのが簡単です）。</li>
           </ol>
-<pre><code><span class="cmt"># 疎通確認</span>
-ping 192.168.123.161
-ping 192.168.123.164
+<pre><code><span class="cmt"># ローカル PC で実行</span>
+ssh g1-remote
+
+<span class="cmt"># リモート PC で実行（疎通確認）</span>
+ping -c 3 192.168.123.161
+ping -c 3 192.168.123.164
 ssh unitree@192.168.123.164
 
-<span class="cmt"># Python SDK のインストール</span>
+<span class="cmt"># リモート PC で実行（Python SDK のインストール）</span>
 git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
 cd unitree_sdk2_python
 pip3 install -e .</code></pre>
-          <p>状態を読むだけの最小コードです。引数には G1 につながっている NIC 名（<code>ip a</code> で確認。例 <code>enp3s0</code>）を渡します。</p>
+          <p>状態を読むだけの最小コードです。引数にはリモート PC の G1 側 NIC 名（<code>ip -br a</code> で 192.168.123.99 が付いているもの。例 <code>enp3s0</code>）を渡します。</p>
 <pre><code><span class="cmt"># read_state.py</span>
 import sys
 import time
@@ -648,19 +811,20 @@ sub = ChannelSubscriber("rt/lowstate", LowState_)
 sub.Init(on_state, 10)
 while True:
     time.sleep(1.0)</code></pre>
-<pre><code>python3 read_state.py enp3s0</code></pre>
+<pre><code><span class="cmt"># リモート PC で実行</span>
+python3 read_state.py enp3s0</code></pre>
           <div class="pitfall">
             <h4>つまずきやすい点</h4>
             <ul>
-              <li>DDS は 192.168.123.x の NIC 1 つだけにバインドさせます。Wi-Fi や USB-LAN が混ざると探索に失敗しやすくなります。</li>
+              <li>リモート PC は NIC が 2 つ（インターネット側と G1 側）あるので、DDS の NIC 指定は必須です。必ず G1 側の NIC 名を渡します。指定しないと、インターネット側に探索が流れて G1 が見つからないことがあります。</li>
               <li>起動直後は DDS の探索に少し時間がかかります。最初の数秒は値が来なくても慌てないこと。</li>
             </ul>
           </div>
           <div class="done">
             <h4>完了条件</h4>
             <ul class="checks">
-              <li><label><input type="checkbox" data-id="p1-1"><span>開発 PC で IMU と全関節角度を 10 Hz 以上でファイルに記録できる</span></label></li>
-              <li><label><input type="checkbox" data-id="p1-2"><span>PC2 に SSH でき、PC2 上でも同じスクリプトが動く</span></label></li>
+              <li><label><input type="checkbox" data-id="p1-1"><span>リモート PC で IMU と全関節角度を 10 Hz 以上でファイルに記録できる</span></label></li>
+              <li><label><input type="checkbox" data-id="p1-2"><span>ローカル PC から踏み台経由で PC2 に SSH でき、PC2 上でも同じスクリプトが動く</span></label></li>
               <li><label><input type="checkbox" data-id="p1-3"><span>NIC 名の確認から実行までの手順をリポジトリの scripts/ にまとめた</span></label></li>
             </ul>
           </div>
@@ -683,6 +847,7 @@ git clone https://github.com/unitreerobotics/unitree_rl_gym.git
 cd unitree_rl_gym
 python deploy/deploy_mujoco/deploy_mujoco.py g1.yaml</code></pre>
           <p class="note">注意：G1 内蔵の歩行制御（sport サービス）はシミュレーションには入っていないので、<code>LocoClient</code> はシミュレーションでは応答しません。そのため MuJoCo 版では強化学習の歩行ポリシーを代役にします。腕の操作を扱うフェーズ 7 では、実機と同じ DDS インタフェースを持つ Isaac Lab ベースの <code>unitree_sim_isaaclab</code> も候補になります。</p>
+          <p class="note">シミュレーションはローカル PC とリモート PC のどちらで動かしても構いません。リモート PC で MuJoCo の画面を見たい場合は、リモートデスクトップを使うか、画面なしで動かしてカメラ画像やログをファイルに保存します。</p>
           <div class="done">
             <h4>完了条件</h4>
             <ul class="checks">
@@ -705,7 +870,7 @@ python deploy/deploy_mujoco/deploy_mujoco.py g1.yaml</code></pre>
             <li>腕のプリセット動作は <code>G1ArmActionClient</code> で呼べます（<code>"shake hand"</code>、<code>"high five"</code>、<code>"clap"</code>、<code>"release arm"</code> など）。VLM に「手を振る」「握手する」を選ばせるときに使います。</li>
             <li>符号を実機で確かめます。<code>vy</code> と <code>omega</code> の正の向きを、クレーン下でゆっくり動かして記録します。</li>
           </ol>
-<pre><code><span class="cmt"># 公式サンプル（クレーン下で、周りに何もないことを確認してから）</span>
+<pre><code><span class="cmt"># リモート PC で実行（公式サンプル。クレーン下で、周りに何もないことを確認してから）</span>
 cd unitree_sdk2_python
 python3 example/g1/high_level/g1_loco_client_example.py enp3s0</code></pre>
           <p>実機版の窓口の骨組みです。上限のクリップと 1 秒失効をここで強制します。</p>
@@ -747,7 +912,8 @@ class RealG1:
             <h4>安全ゲート</h4>
             <ul>
               <li>最初はクレーンで体重を少し支えた状態で、次にクレーンを緩めて（外さずに）試します。</li>
-              <li>開発 PC の LAN ケーブルを抜いたとき、1 秒以内に止まることを必ず確かめます。</li>
+              <li>リモート PC と G1 の間の LAN ケーブルを抜いたとき、1 秒以内に止まることを必ず確かめます。</li>
+              <li>ローカル PC とリモート PC の間の SSH が切れると、ターミナルで直接動かしているプログラムは終了し、指令が途切れて止まります。tmux などで動かすとプログラムは動き続けるので、その場合も止められるのは G1 のそばの監視者のリモコンだけだと考えておきます。</li>
               <li>高レベル API はデバッグモードでは無効です。低レベル制御のサンプルと混ぜて使わないこと。</li>
             </ul>
           </div>
@@ -755,9 +921,10 @@ class RealG1:
             <h4>完了条件</h4>
             <ul class="checks">
               <li><label><input type="checkbox" data-id="p3-1"><span>スクリプトから 0.2 m/s で 1 秒前進、旋回、停止を 5 回連続で再現できる</span></label></li>
-              <li><label><input type="checkbox" data-id="p3-2"><span>通信を切ると 1 秒以内に停止することを確認した</span></label></li>
+              <li><label><input type="checkbox" data-id="p3-2"><span>リモート PC と G1 の通信を切ると 1 秒以内に停止することを確認した</span></label></li>
               <li><label><input type="checkbox" data-id="p3-3"><span>vy と旋回の符号の向きを記録した</span></label></li>
               <li><label><input type="checkbox" data-id="p3-4"><span>腕のプリセット動作を 2 種類以上スクリプトから呼べる</span></label></li>
+              <li><label><input type="checkbox" data-id="p3-5"><span>ローカル PC との SSH が切れたときの動きを確認した</span></label></li>
             </ul>
           </div>
         </section>
@@ -765,24 +932,28 @@ class RealG1:
         <!-- ===== Phase 4 ===== -->
         <section class="phase" id="p4">
           <div class="phase-head"><span class="pnum">4</span><h3>頭部カメラの画像を取り出す</h3><span class="dur">1 週間</span></div>
-          <p class="goal">頭部の D435i の画像を、タイムスタンプ付きで VLM を動かすマシンまで届けます。</p>
+          <p class="goal">頭部の D435i の画像を、タイムスタンプ付きでリモート PC まで届けます。</p>
           <h4>やること</h4>
           <ol>
             <li>D435i は PC2 につながっています。PC2 で画像を取り、ネットワーク越しに配信します。</li>
             <li>方法は 2 つあります。(a) Unitree の <code>teleimager</code>（UVC・OpenCV・RealSense のカメラを ZeroMQ または WebRTC で配信する画像サーバ。<code>xr_teleoperate</code> でも使われています）。(b) PC2 で <code>pyrealsense2</code> などを使って自作し、JPEG を ZeroMQ で送る。</li>
-            <li>VLM に渡すには 640×480 の JPEG で十分です。撮影時刻と受信時刻を記録し、遅延を測ります。</li>
+            <li>どちらも PC2 にソフトを入れる必要があります。teleimager は Python 3.10 以上（README では conda 環境を推奨）と libjpeg-turbo 3.0 以上を必要とするので、<a href="#offline">オフラインの手順</a>の 4（一時共有）で入れるのが現実的です。</li>
+            <li>VLM に渡すには 640×480 の JPEG で十分です。PC2 とリモート PC の時刻を合わせてから（オフラインの手順の 5）、撮影時刻と受信時刻を記録して遅延を測ります。</li>
             <li>深度画像も取れるようにしておきます。フェーズ 6 で「正面 0.8 m 以内に何かあれば止まる」という、VLM に頼らない安全判定に使います。</li>
           </ol>
-<pre><code><span class="cmt"># PC2 で teleimager を使う場合（詳細はリポジトリの README を参照）</span>
-ssh unitree@192.168.123.164
+<pre><code><span class="cmt"># リモート PC で実行（ソースを取ってきて PC2 へ送る）</span>
+cd ~/g1_offline
 git clone https://github.com/unitreerobotics/teleimager.git
-cd teleimager
-pip install -e ".[server]"</code></pre>
+rsync -av ~/g1_offline/teleimager unitree@192.168.123.164:~/g1_offline/
+
+<span class="cmt"># PC2 で実行（一時共有中に、conda 環境で。詳細は teleimager の README）</span>
+cd ~/g1_offline/teleimager
+pip install -e ".[realsense]"</code></pre>
           <div class="done">
             <h4>完了条件</h4>
             <ul class="checks">
-              <li><label><input type="checkbox" data-id="p4-1"><span>VLM を動かすマシンで 5 fps 以上のカラー画像をタイムスタンプ付きで受信できる</span></label></li>
-              <li><label><input type="checkbox" data-id="p4-2"><span>撮影から受信までの遅延を計測し、平均と最大を記録した</span></label></li>
+              <li><label><input type="checkbox" data-id="p4-1"><span>リモート PC で 5 fps 以上のカラー画像をタイムスタンプ付きで受信できる</span></label></li>
+              <li><label><input type="checkbox" data-id="p4-2"><span>PC2 とリモート PC の時刻を合わせ、撮影から受信までの遅延の平均と最大を記録した</span></label></li>
               <li><label><input type="checkbox" data-id="p4-3"><span>深度画像から正面の最短距離を計算できる</span></label></li>
             </ul>
           </div>
@@ -797,7 +968,8 @@ pip install -e ".[server]"</code></pre>
             <li>行動の種類を固定します。<code>move</code>（速度と時間）、<code>stop</code>、<code>gesture</code>（腕のプリセット名）、<code>done</code>（達成）、<code>ask</code>（指示が曖昧なときの質問）の 5 つから始めます。</li>
             <li>出力の JSON 形式を決め、システムプロンプトにロボットの座標系・上限・行動の種類を書きます。</li>
             <li>バリデータを作ります。JSON として読めない、知らない行動、上限超え、のどれかに当たれば <code>stop</code> に置き換えます。</li>
-            <li>提案モードを作ります。VLM の提案と画像を画面に出し、人が Enter を押したときだけ実行します。</li>
+            <li>VLM はリモート PC から呼びます。G1 からはインターネットにも VLM にも届かないためです。ローカルの VLM はリモート PC の GPU（なければリモート PC から届く別の GPU マシン）で動かし、クラウド API もリモート PC から呼び出します。</li>
+            <li>提案モードを作ります。VLM の提案と画像を画面に出し、人が承認したときだけ実行します。画面はリモート PC で動かし、ローカル PC のブラウザから SSH のポート転送で開きます（<a href="#offline">オフラインの手順</a>の 1）。</li>
             <li>画像・プロンプト・VLM の返答・実際に送った指令をすべて記録し、あとで再生できるようにします。</li>
             <li>まず MuJoCo で、次にクレーン下の実機で試します。</li>
           </ol>
@@ -839,7 +1011,7 @@ pip install -e ".[server]"</code></pre>
           <ol>
             <li>提案モードの承認を外し、1 Hz 前後でループを回します。1 回の実行は 1 秒以内に限ります。</li>
             <li>VLM に頼らない安全ゲートを実行器に入れます（下の囲み）。</li>
-            <li>実行器を PC2 に移します。GPU PC との通信が切れても、PC2 が自分で止まれるようにするためです。</li>
+            <li>実行器を PC2 に移します。リモート PC との通信が切れても、PC2 が自分で止まれるようにするためです。VLM への問い合わせはリモート PC が中継し、PC2 は 192.168.123.x の中だけで通信します。</li>
             <li>タスクを決めて評価します。たとえば「前方の椅子の前まで行って止まって」「右を向いて、人がいたら手を振って」「ドアを探して、その前で止まって」。</li>
             <li>達成の判定も VLM に任せ（<code>done</code>）、判定が正しかったかを人が記録します。</li>
           </ol>
@@ -864,16 +1036,17 @@ while not finished:
               <li><strong>ウォッチドッグ</strong>：有効な指令が一定時間（例 1.5 秒）来なければ <code>StopMove()</code>。</li>
               <li><strong>近接停止</strong>：深度画像の中央付近に 0.8 m 以内の物体があれば停止。</li>
               <li><strong>手数の上限</strong>：1 タスクあたりの最大ステップ数を決め、超えたら停止して人に返す。</li>
+              <li><strong>操作者のハートビート</strong>：ローカル PC の操作者 UI から一定間隔で生存信号を送り、途切れたら停止。ローカル PC とリモート PC の間の回線が切れたときに、誰も見ていないまま動き続けないようにする。</li>
               <li><strong>デッドマン</strong>：操作者がキーやボタンを押している間だけ動く仕組みを、自動モードの初期は残しておく。</li>
-              <li><strong>リモコン</strong>：監視者はいつでもリモコンで止められる位置にいる。</li>
+              <li><strong>リモコン</strong>：監視者は G1 のそばで、いつでもリモコンで止められる位置にいる。ネットワーク越しの停止手段は、どれもこれの代わりにはならない。</li>
             </ul>
           </div>
           <div class="done">
             <h4>完了条件</h4>
             <ul class="checks">
               <li><label><input type="checkbox" data-id="p6-1"><span>3 タスク × 10 試行で、成功率・介入回数・所要時間を記録した</span></label></li>
-              <li><label><input type="checkbox" data-id="p6-2"><span>停止テストに全て合格：通信断、VLM の異常出力、人の接近、手数超過</span></label></li>
-              <li><label><input type="checkbox" data-id="p6-3"><span>実行器が PC2 上で動き、GPU PC を切っても安全に止まる</span></label></li>
+              <li><label><input type="checkbox" data-id="p6-2"><span>停止テストに全て合格：リモート PC と G1 の通信断、ローカル PC とリモート PC の回線断、VLM の異常出力、人の接近、手数超過</span></label></li>
+              <li><label><input type="checkbox" data-id="p6-3"><span>実行器が PC2 上で動き、リモート PC との LAN を切っても安全に止まる</span></label></li>
               <li><label><input type="checkbox" data-id="p6-4"><span>試行中の接触・転倒が 0 件</span></label></li>
             </ul>
           </div>
@@ -894,7 +1067,7 @@ while not finished:
             <li><strong>UnifoLM-VLA-0</strong>（Unitree、2026 年 1 月公開）：Qwen2.5-VL-7B を基にした VLA。G1 の 12 種類の操作タスク（引き出しの開閉、プラグの抜き差し、ピック＆プレースなど）を単一のポリシーでこなしたと報告。重みとデータセットが Hugging Face にある。</li>
             <li><strong>GR00T N1.6</strong>（NVIDIA）：3B パラメータの人型ロボット向け VLA。事前学習データに G1 の全身移動操作が含まれ、G1 のピック＆プレース用ファインチューニング済みチェックポイントもある。</li>
             <li><strong>GR00T 2 / GR00T 2 Turbo</strong>（NVIDIA、2026 年 11 月発表）：未来の映像と行動を同時に予測する world action model。Turbo を G1 で動かすデモでは、推論は Jetson AGX Thor、全身制御は別の Jetson Orin NX で行っている。重みは 12 月に公開予定とされている。</li>
-            <li><strong>データ収集</strong>：<code>xr_teleoperate</code>（Apple Vision Pro・PICO・Quest で遠隔操作し記録）で実演を集め、<code>unitree_lerobot</code> で学習・評価する流れが公式に用意されている。シミュレーションでは <code>unitree_sim_isaaclab</code> でデータ収集や検証ができる。</li>
+            <li><strong>データ収集</strong>：<code>xr_teleoperate</code>（Apple Vision Pro・PICO・Quest で遠隔操作し記録）で実演を集め、<code>unitree_lerobot</code> で学習・評価する流れが公式に用意されている。シミュレーションでは <code>unitree_sim_isaaclab</code> でデータ収集や検証ができる。PC2 側に必要なパッケージは、オフラインの手順で持ち込む。</li>
           </ul>
           <p>現実的な発展形は、VLM を「計画する係」、VLA を「1 つの技能を実行する係」とする組み合わせです。たとえば VLM が「棚の前まで歩く」「赤い箱を取る」「台に置く」と分解し、歩行は内蔵制御、「赤い箱を取る」は VLA に任せます。</p>
           <div class="done">
@@ -920,13 +1093,13 @@ while not finished:
           <tbody>
             <tr>
               <th>Gemini Robotics ER 2</th>
-              <td>クラウド API（<code>gemini-robotics-er-2-preview</code>、低遅延版の <code>-streaming-preview</code>）</td>
+              <td>クラウド API をリモート PC から呼ぶ（<code>gemini-robotics-er-2-preview</code>、低遅延版の <code>-streaming-preview</code>）</td>
               <td>ロボット向けの空間推論。画像上の物体を [y, x]（0〜1000 に正規化）で指せる。関数呼び出しで自作のロボット API を呼ばせられる。</td>
               <td>プレビュー版で、前の版（ER 1.6）は 2026 年 8 月に提供終了済み。通信が必要。人が写る画像を外部に送るので、写る人の同意が要る。</td>
             </tr>
             <tr>
               <th>Qwen3.5</th>
-              <td>GPU PC でローカル実行（vLLM や SGLang で OpenAI 互換 API として立てる）</td>
+              <td>リモート PC の GPU（なければリモート PC から届く別の GPU マシン）でローカル実行。vLLM や SGLang で OpenAI 互換 API として立てる</td>
               <td>オープンウェイト（Apache 2.0）で、0.8B から 397B まで揃う。通信不要で、画像を外に出さない。追加学習もできる。</td>
               <td>VRAM 24GB なら 4B〜9B 程度が現実的。小さいモデルほど空間の判断が弱いので、プロンプトと検査で補う。</td>
             </tr>
@@ -940,7 +1113,7 @@ while not finished:
               <th>PC2 上の小型 VLM</th>
               <td>G1 の Jetson Orin NX 16GB</td>
               <td>ネットワークに依存しない。</td>
-              <td>メモリと速度が厳しく、画像配信や実行器と取り合いになる。まずは外部の GPU PC で始め、最後に検討する。</td>
+              <td>メモリと速度が厳しく、画像配信や実行器と取り合いになる。モデルや推論ソフトはリモート PC 経由で持ち込む必要がある。まずはリモート PC 側で始め、最後に検討する。</td>
             </tr>
           </tbody>
         </table>
@@ -957,7 +1130,9 @@ while not finished:
             <tr><th>転倒</th><td>クレーン、低い速度上限、平らな床、作業エリアの区切り。減衰はクレーン下でのみ。</td></tr>
             <tr><th>VLM の誤判断</th><td>行動の種類を固定、JSON 検査と上限クリップ、1 秒失効、提案モードで十分に試してから自動化。</td></tr>
             <tr><th>判断の遅さ</th><td>止まって考え、短く動く方式にする。1 回の実行は 1 秒以内、ループは 1 Hz 前後。</td></tr>
-            <tr><th>通信断</th><td>ロボット側（PC2）のウォッチドッグで停止。速度指令自体も 1 秒で失効。</td></tr>
+            <tr><th>リモート PC と G1 の通信断</th><td>ロボット側（PC2）のウォッチドッグで停止。速度指令自体も 1 秒で失効。</td></tr>
+            <tr><th>ローカル PC とリモート PC の回線断</th><td>操作者のハートビートが途切れたら停止。G1 のそばにリモコンを持った監視者を置く。</td></tr>
+            <tr><th>G1 がオフライン</th><td>PC2 への導入はリモート PC 経由（rsync での持ち込み、wheel の持ち込み、一時的な NAT 共有）。時刻はリモート PC に合わせる。</td></tr>
             <tr><th>左右・座標の取り違え</th><td>プロンプトに座標系を明記し、正解の分かる場面でテスト。符号は実機で確認した値を使う。</td></tr>
             <tr><th>ファームウェア更新で API の挙動が変わる</th><td>バージョンを記録し、更新後は公式サンプルとフェーズ 3 の停止テストをやり直す。</td></tr>
             <tr><th>プライバシー</th><td>クラウド VLM に人が写る画像を送る場合は事前に同意を得る。ローカル VLM を選ぶ選択肢も残す。</td></tr>
@@ -1001,6 +1176,12 @@ while not finished:
         <dd>内蔵の歩行制御を動かしたまま、腕と腰の関節だけを自分で動かすための DDS トピック（<code>rt/arm_sdk</code>）。</dd>
         <dt>sim2sim / sim2real</dt>
         <dd>あるシミュレータで作った制御を別のシミュレータや実機に移すこと。移した先で挙動が変わることが多いので、段階を踏んで確かめます。</dd>
+        <dt>ローカル PC / リモート PC</dt>
+        <dd>ローカル PC は手元の作業用 PC。リモート PC は G1 と有線 LAN でつながり、インターネットにも出られる PC で、ローカル PC から SSH で入って使います。</dd>
+        <dt>踏み台（ProxyJump）</dt>
+        <dd>直接は届かないマシンに、途中のマシンを経由して SSH で入る仕組み。ここではリモート PC を踏み台にして PC2 に入ります。</dd>
+        <dt>NAT（IP マスカレード）</dt>
+        <dd>あるマシンが、つながっている別のマシンの通信をインターネットへ中継する仕組み。ここでは PC2 の初期セットアップのときだけ一時的に使います。</dd>
         <dt>ファインチューニング</dt>
         <dd>学習済みのモデルを、自分のデータで追加学習して特定の用途に合わせること。</dd>
       </dl>
